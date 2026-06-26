@@ -3,21 +3,19 @@
 Follow these steps to run Omnidrop locally on your development machine.
 
 ## Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for PostgreSQL database)
+- A [Neon Console](https://neon.tech/) account (for PostgreSQL database)
 - Python 3.11+
 - Node.js 20+
 
 ---
 
-## 1. Start the Database
-Omnidrop uses a PostgreSQL database container.
+## 1. Database Setup (Neon Cloud)
+Omnidrop uses Neon Cloud PostgreSQL for database storage.
 
-1. Open your terminal in the root directory.
-2. Run the Docker Compose command:
-   ```bash
-   docker compose up -d
-   ```
-3. The database will spin up and listen on port **5433** (mapped to the container's 5432 to avoid local conflicts).
+1. Sign up or log in to the [Neon Console](https://console.neon.tech/).
+2. Create a new project (e.g. `omnidrop`).
+3. Copy the **PostgreSQL Connection String** from the Neon dashboard.
+4. You will use this connection string as the `DATABASE_URL` in your `.env` file.
 
 ---
 
@@ -45,7 +43,9 @@ Omnidrop uses a PostgreSQL database container.
    ```bash
    cp .env.example .env
    ```
-   **CRITICAL**: You must add your `GEMINI_API_KEY` to the `.env` file to enable the AI Chatbot and AI Delivery Estimates. Without it, those features will fail.
+   **CRITICAL**: 
+   - You must update the `DATABASE_URL` in `.env` with your Neon PostgreSQL connection string.
+   - You must add your `GEMINI_API_KEY` to the `.env` file to enable the AI Chatbot and AI Delivery Estimates. Without it, those features will fail.
 
 5. Start the server:
    ```bash

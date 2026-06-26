@@ -15,7 +15,7 @@ Omnidrop is a modern, high-performance Quick Commerce platform designed for ultr
 - **Framework**: FastAPI (Python 3.11+)
 - **AI/LLM**: Google GenAI (`google-genai`) with Function Calling
 - **ORM**: SQLAlchemy 2.0
-- **Database**: PostgreSQL 18
+- **Database**: Neon Cloud PostgreSQL
 - **Authentication**: JWT (JSON Web Tokens) with python-jose & passlib (bcrypt)
 - **Validation**: Pydantic v2
 - **Testing**: Pytest + HTTPX + coverage

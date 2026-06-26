@@ -18,12 +18,12 @@ This repository features a full-stack implementation including a robust RESTful 
 Comprehensive project documentation is available in the [`docs/`](./docs) directory:
 
 - 🏗️ **[Architecture Overview](./docs/architecture.md)**: Deep dive into the tech stack and system components.
-- 🚀 **[Setup Guide](./docs/setup_guide.md)**: Step-by-step instructions to run the application locally via Docker.
+- 🚀 **[Setup Guide](./docs/setup_guide.md)**: Step-by-step instructions to run the application locally with Neon Cloud PostgreSQL.
 - 📖 **[API Reference](./docs/api_reference.md)**: Full details on all backend REST endpoints.
 
 ## Stack Summary
 
-- **Backend:** Python 3.11, FastAPI, SQLAlchemy 2.0, PostgreSQL 18, Pytest
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy 2.0, Neon Cloud PostgreSQL, Pytest
 - **AI Integration:** Google GenAI (Gemini 2.5 Flash)
 - **Frontend:** Node.js 20+, React 19, Vite, Tailwind CSS v4, Vitest
 
