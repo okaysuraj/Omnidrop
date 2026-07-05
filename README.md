@@ -1,31 +1,103 @@
-# Omnidrop 
+# ⚡ Omnidrop
 
-Omnidrop is a modern, premium **Quick Commerce** platform delivering fresh groceries, organic produce, and daily essentials from local dark stores to your door in under 15 minutes.
+A production-ready hyperlocal e-commerce marketplace (like Blinkit, Zepto, or Swiggy).
 
-This repository features a full-stack implementation including a robust RESTful backend, a high-performance frontend, and a relational database schema optimized for inventory management.
+## 🎯 Overview
 
-## Key Features
+Omnidrop connects:
+1. **Customers**: Discover nearby stores, browse products, and get instant delivery.
+2. **Shopkeepers**: Manage inventory, fulfill orders, and track store performance.
+3. **Delivery Partners**: Accept local delivery tasks, track routes via GPS, and earn per delivery.
+4. **Admins**: Monitor platform metrics, manage users, and oversee operations.
 
-- **Hyper-Local Fulfillment**: Geo-locates users and maps them to the nearest active dark store for rapid delivery. Stock levels dynamically update based on the localized inventory.
-- **AI-Powered Shopping & Delivery Estimates**: Features a floating AI chatbot powered by Google Gemini (GenAI) that can answer product queries, act as an AI shopping assistant, and automatically add items to your cart via Function Calling. It also generates real-time delivery estimates.
-- **Premium User Experience**: Designed with modern UI/UX principles (glassmorphism, vibrant colors, micro-animations) utilizing React and Tailwind CSS v4.
-- **Three-Tier Role Management**: Supports **Customers** (browsing/purchasing), **Sellers** (inventory management), and **Riders** (delivery fulfillment).
-- **Automated Test Suites**: Comprehensive end-to-end testing with Pytest on the backend and Vitest/React Testing Library on the frontend.
-- **Secure Architecture**: JWT-based authentication with bcrypt password hashing.
+## 🧱 Tech Stack
 
-## Documentation
+### Frontend (Web)
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + Custom CSS (Glassmorphism, Dark Mode)
+- **Auth**: Firebase Authentication (Client SDK)
 
-Comprehensive project documentation is available in the [`docs/`](./docs) directory:
+### Backend (API)
+- **Runtime**: Node.js
+- **Framework**: NestJS
+- **Language**: TypeScript
+- **Database**: PostgreSQL (via TypeORM)
+- **Real-time**: Socket.IO (WebSockets)
+- **Auth Verification**: Firebase Admin SDK
 
-- 🏗️ **[Architecture Overview](./docs/architecture.md)**: Deep dive into the tech stack and system components.
-- 🚀 **[Setup Guide](./docs/setup_guide.md)**: Step-by-step instructions to run the application locally with Neon Cloud PostgreSQL.
-- 📖 **[API Reference](./docs/api_reference.md)**: Full details on all backend REST endpoints.
+### Infrastructure
+- **Containers**: Docker + Docker Compose
+- **Database**: PostgreSQL 16
+- **Cache / Queues**: Redis 7 (planned for BullMQ / caching)
 
-## Stack Summary
+## 🏗️ Architecture
 
-- **Backend:** Python 3.11, FastAPI, SQLAlchemy 2.0, Neon Cloud PostgreSQL, Pytest
-- **AI Integration:** Google GenAI (Gemini 2.5 Flash)
-- **Frontend:** Node.js 20+, React 19, Vite, Tailwind CSS v4, Vitest
+The backend follows a **Modular Monolith** architecture with strict separation of concerns. The API serves as the single source of truth for business logic, RBAC (Role-Based Access Control), and data integrity.
 
----
-*Created as a demonstration of advanced full-stack development, AI tool calling, and modern aesthetic UI design.*
+### Key Features
+- **Geo-Discovery**: Haversine formula implemented in SQL to find nearby stores.
+- **Role-Based Access**: Custom `@Roles` guard to enforce CUSTOMER, SHOPKEEPER, DELIVERY_PARTNER, and ADMIN permissions.
+- **Real-Time Tracking**: WebSockets handle live order status updates and delivery partner location tracking.
+- **Transactional Checkout**: Ensures atomic operations when decrementing stock and creating orders/payments.
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 20+
+- A Firebase Project (for Authentication)
+
+### 1. Infrastructure (Database & Redis)
+
+Start the local PostgreSQL and Redis containers:
+
+```bash
+docker-compose up -d
+```
+
+### 2. Backend Setup
+
+```bash
+cd backend
+npm install
+```
+
+Configure environment variables:
+1. Copy `.env.example` to `.env`.
+2. Provide your `FIREBASE_PROJECT_ID`.
+3. Put your Firebase Admin SDK service account key in `firebase-service-account.json`.
+
+Run the backend API:
+```bash
+npm run start:dev
+```
+The API will run on `http://localhost:4000/api`.
+
+### 3. Frontend Setup
+
+```bash
+cd web
+npm install
+```
+
+Configure environment variables:
+1. Copy `.env.local.example` to `.env.local`.
+2. Provide your Firebase client config values.
+
+Run the web app:
+```bash
+npm run dev
+```
+The web app will run on `http://localhost:3000`.
+
+## 🎨 UI/UX Design
+
+Omnidrop features a premium, dynamic design out of the box:
+- **Glassmorphism**: Translucent cards with subtle blurs and borders.
+- **Micro-animations**: Pulse effects for live tracking, hover states, and shimmer loading skeletons.
+- **Vibrant Gradients**: Deep dark mode backgrounds contrasted with energetic primary/accent gradients.
+
+## 📖 License
+
+Proprietary. All rights reserved.
