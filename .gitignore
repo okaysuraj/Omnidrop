@@ -8,7 +8,7 @@ dist/
 build/
 .next/
 out/
-
+skills/
 # Environment files
 .env
 .env.local

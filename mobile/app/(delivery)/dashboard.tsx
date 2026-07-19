@@ -4,6 +4,7 @@ import { api } from '../../src/lib/api';
 import { useAuth } from '../../src/providers/auth-provider';
 import * as Location from 'expo-location';
 import { LOCATION_TASK_NAME } from '../../src/lib/location-task';
+import MapView, { Marker } from 'react-native-maps';
 
 export default function DeliveryDashboard() {
   const [activeTask, setActiveTask] = useState<any>(null);
@@ -130,6 +131,21 @@ export default function DeliveryDashboard() {
             <View className="mb-6">
               <Text className="text-slate-400 text-sm mb-1">Deliver To</Text>
               <Text className="text-white font-semibold">{activeTask.order?.deliveryAddress}</Text>
+            </View>
+
+            {/* Live Map Tracking */}
+            <View className="h-48 mb-4 rounded-xl overflow-hidden border border-indigo-500/30">
+              <MapView
+                style={{ flex: 1 }}
+                initialRegion={{
+                  latitude: 28.7041,
+                  longitude: 77.1025,
+                  latitudeDelta: 0.05,
+                  longitudeDelta: 0.05,
+                }}
+              >
+                <Marker coordinate={{ latitude: 28.7041, longitude: 77.1025 }} title="Pickup" />
+              </MapView>
             </View>
 
             <View className="flex-row gap-2 mt-4">

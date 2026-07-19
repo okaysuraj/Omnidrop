@@ -13,15 +13,29 @@ async function bootstrap() {
 
   // Initialize Firebase Admin SDK
   try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-    if (serviceAccount) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+
+    if (projectId && clientEmail && privateKey) {
+      // Initialize with separate env variables (recommended for PaaS like Render)
+      admin.initializeApp({
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+    } else if (serviceAccountPath) {
+      // Fallback to service account json file path
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const certObj = require(serviceAccount);
+      const certObj = require(serviceAccountPath);
       admin.initializeApp({ credential: cert(certObj) });
     } else {
       // Use application default credentials or project ID
       admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'omnidrop-dev',
+        projectId: projectId || 'omnidrop-dev',
       });
     }
     logger.log('Firebase Admin SDK initialized');
@@ -29,7 +43,7 @@ async function bootstrap() {
     logger.warn(`Firebase Admin SDK init warning: ${error.message}`);
     // Initialize with minimal config for development
     if (!getApps().length) {
-      admin.initializeApp({ projectId: 'omnidrop-dev' });
+      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'omnidrop-dev' });
     }
   }
 

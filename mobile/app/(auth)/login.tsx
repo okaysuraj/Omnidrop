@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../../src/lib/firebase';
 
 export default function LoginScreen() {
@@ -23,7 +23,15 @@ export default function LoginScreen() {
 
     try {
       // 1. Authenticate with Firebase
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      if (!userCredential.user.emailVerified) {
+        await signOut(auth);
+        setError('Please verify your email before logging in.');
+        setLoading(false);
+        return;
+      }
+      
       // The AuthProvider will detect this state change and handle routing
     } catch (err: any) {
       setError(err.message || 'Failed to login');

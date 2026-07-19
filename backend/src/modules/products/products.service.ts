@@ -58,9 +58,10 @@ export class ProductsService {
     }
 
     if (search) {
+      // Typo-tolerant full-text search fallback to ILIKE
       query.andWhere(
-        '(product.name ILIKE :search OR product.description ILIKE :search)',
-        { search: `%${search}%` },
+        `(to_tsvector('english', product.name || ' ' || coalesce(product.description, '')) @@ plainto_tsquery('english', :search)) OR (product.name ILIKE :searchLike OR product.description ILIKE :searchLike)`,
+        { search, searchLike: `%${search}%` },
       );
     }
 
@@ -129,13 +130,14 @@ export class ProductsService {
   }
 
   async search(query: string) {
-    return this.productRepository.find({
-      where: [
-        { name: ILike(`%${query}%`) },
-        { description: ILike(`%${query}%`) },
-      ],
-      relations: { category: true },
-      take: 20,
-    });
+    return this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .where(
+        `(to_tsvector('english', product.name || ' ' || coalesce(product.description, '')) @@ plainto_tsquery('english', :query)) OR (product.name ILIKE :queryLike OR product.description ILIKE :queryLike)`,
+        { query, queryLike: `%${query}%` },
+      )
+      .take(20)
+      .getMany();
   }
 }

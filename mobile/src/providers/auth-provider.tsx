@@ -28,12 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
+        if (!fbUser.emailVerified) {
+          await signOut(auth);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         try {
           const dbUser = await api.auth.login();
           setUser({ ...dbUser, firebaseUser: fbUser });
         } catch (error) {
           console.error("Auth sync error:", error);
           setUser(null);
+          await signOut(auth);
         }
       } else {
         setUser(null);

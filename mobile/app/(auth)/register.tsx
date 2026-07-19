@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth } from '../../src/lib/firebase';
+import { Alert } from 'react-native';
 
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
@@ -27,6 +28,9 @@ export default function RegisterScreen() {
       // 1. Create Firebase User
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
+      // Send verification email immediately
+      await sendEmailVerification(userCredential.user);
+      
       // 2. Get ID token
       const token = await userCredential.user.getIdToken();
       
@@ -37,7 +41,13 @@ export default function RegisterScreen() {
         idToken: token,
       });
 
-      // The AuthProvider will handle the redirect automatically after login API succeeds
+      // Sign out to prevent unverified login state
+      await signOut(auth);
+      Alert.alert(
+        "Verification Email Sent",
+        "Registration successful! Please check your email to verify your account before logging in.",
+        [{ text: "OK", onPress: () => router.replace('/(auth)/login') }]
+      );
     } catch (err: any) {
       setError(err.message || 'Failed to register');
     } finally {

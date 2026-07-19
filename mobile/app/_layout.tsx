@@ -3,12 +3,20 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../src/providers/auth-provider';
 import { View, ActivityIndicator } from 'react-native';
 import '../src/lib/location-task'; // Register background task
+import { registerForPushNotificationsAsync } from '../src/lib/push-notifications';
 
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => {
+      // In a real app, send this token to the backend
+      if (token) console.log('Initialized Push Notifications', token);
+    });
+  }, []);
 
   useEffect(() => {
     if (loading) return;

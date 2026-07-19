@@ -1,6 +1,7 @@
 import { Controller, Post, Req, Res, Headers, BadRequestException, Logger, RawBodyRequest, Body } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { StripeService } from './stripe.service';
+import { RazorpayService } from './razorpay.service';
 import { OrdersService } from '../orders/orders.service';
 import { OrderStatus } from '../../common/enums';
 import { Public } from '../../common/decorators/public.decorator';
@@ -11,6 +12,7 @@ export class PaymentsController {
 
   constructor(
     private stripeService: StripeService,
+    private razorpayService: RazorpayService,
     private ordersService: OrdersService,
   ) {}
 
@@ -21,10 +23,15 @@ export class PaymentsController {
     const order = await this.ordersService.findOne(orderId);
     if (!order) throw new BadRequestException('Order not found');
     if (order.userId !== req.user.id) throw new BadRequestException('Not authorized for this order');
-    if (order.paymentMethod !== 'ONLINE') throw new BadRequestException('Order is not set to online payment');
+    if (order.paymentMethod === 'COD') throw new BadRequestException('Order is COD');
 
-    const intent = await this.stripeService.createPaymentIntent(order.total, 'inr', { orderId: order.id });
-    return { clientSecret: intent.client_secret };
+    if (order.paymentMethod === 'UPI' || order.paymentMethod === 'WALLET') {
+      const rzpOrder = await this.razorpayService.createOrder(order, order.total);
+      return { provider: 'razorpay', orderId: rzpOrder.id, amount: rzpOrder.amount, currency: rzpOrder.currency };
+    } else {
+      const intent = await this.stripeService.createPaymentIntent(order.total, 'inr', { orderId: order.id });
+      return { provider: 'stripe', clientSecret: intent.client_secret };
+    }
   }
 
   @Public()

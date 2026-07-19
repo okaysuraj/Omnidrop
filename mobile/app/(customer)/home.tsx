@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
 import { useAuth } from '../../src/providers/auth-provider';
+import Voice from '@react-native-voice/voice';
 
 export default function CustomerHome() {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const { logout } = useAuth();
   const router = useRouter();
 
@@ -23,7 +26,35 @@ export default function CustomerHome() {
       }
     };
     loadStores();
+
+    // Voice Setup
+    Voice.onSpeechResults = (e) => {
+      setSearchQuery(e.value?.[0] || '');
+      setIsListening(false);
+    };
+    Voice.onSpeechError = () => {
+      setIsListening(false);
+    };
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
   }, []);
+
+  const toggleVoiceSearch = async () => {
+    try {
+      if (isListening) {
+        await Voice.stop();
+        setIsListening(false);
+      } else {
+        setIsListening(true);
+        setSearchQuery('');
+        await Voice.start('en-US');
+      }
+    } catch (e) {
+      console.error(e);
+      setIsListening(false);
+    }
+  };
 
   const renderStore = ({ item }: { item: any }) => (
     <TouchableOpacity className="bg-slate-800 p-4 rounded-2xl mb-4 border border-slate-700 flex-row">
@@ -46,6 +77,21 @@ export default function CustomerHome() {
         </View>
         <TouchableOpacity onPress={logout} className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
           <Text className="text-slate-300 font-bold">Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search Bar with Voice */}
+      <View className="flex-row items-center bg-slate-800 rounded-2xl px-4 py-3 mb-6 border border-slate-700">
+        <Text className="text-xl mr-2">🔍</Text>
+        <TextInput
+          className="flex-1 text-white text-base"
+          placeholder="Search products, stores..."
+          placeholderTextColor="#94a3b8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity onPress={toggleVoiceSearch} className={`p-2 rounded-full ${isListening ? 'bg-red-500/20' : 'bg-slate-700'}`}>
+          <Text className="text-xl">{isListening ? '🔴' : '🎤'}</Text>
         </TouchableOpacity>
       </View>
 

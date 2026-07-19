@@ -51,12 +51,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFirebaseUser(fbUser);
 
       if (fbUser) {
+        if (!fbUser.emailVerified) {
+          await firebaseSignOut(auth);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         try {
           const token = await fbUser.getIdToken();
           const profile = await api.auth.login(token) as any;
           setUser(profile);
         } catch {
           // User exists in Firebase but not in backend — likely needs to register
+          await firebaseSignOut(auth);
           setUser(null);
         }
       } else {
@@ -74,6 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+      
+      if (!cred.user.emailVerified) {
+        await firebaseSignOut(auth);
+        throw new Error('Please verify your email before logging in.');
+      }
+      
       const token = await cred.user.getIdToken();
       const profile = await api.auth.login(token) as any;
       setUser(profile);
@@ -104,8 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
       }) as any;
 
-      setUser(profile);
-      setFirebaseUser(cred.user);
+      await firebaseSignOut(auth);
+      // We don't set user, forcing them to login after verification
+      setUser(null);
+      setFirebaseUser(null);
+      // We could throw a special error or just let the caller handle success
     } catch (err: any) {
       const message = err.code === 'auth/email-already-in-use'
         ? 'Email is already registered'

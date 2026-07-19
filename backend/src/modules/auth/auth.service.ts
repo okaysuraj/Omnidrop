@@ -48,6 +48,10 @@ export class AuthService {
   async login(firebaseToken: string) {
     const decodedToken = await this.verifyFirebaseToken(firebaseToken);
 
+    if (!decodedToken.email_verified) {
+      throw new UnauthorizedException('Please verify your email before logging in.');
+    }
+
     const user = await this.userRepository.findOne({
       where: { firebaseUid: decodedToken.uid, isActive: true },
     });
@@ -57,7 +61,7 @@ export class AuthService {
     }
 
     // Update verification status if changed
-    if (decodedToken.email_verified && !user.isVerified) {
+    if (!user.isVerified) {
       user.isVerified = true;
       await this.userRepository.save(user);
     }
