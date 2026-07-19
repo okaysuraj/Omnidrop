@@ -28,7 +28,7 @@ export default function OrderDetailPage() {
     if (!authLoading && !user) { router.push('/auth/login'); return; }
     const loadOrder = async () => {
       try {
-        const data = await api.orders.byId(id);
+        const data = await api.orders.getById(id);
         setOrder(data);
       } catch { /* ignore */ }
       setLoading(false);

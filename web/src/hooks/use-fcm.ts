@@ -29,7 +29,7 @@ export function useFCM() {
 
         if (currentToken) {
           // Send token to backend profile
-          await api.users.updateProfile({ fcmToken: currentToken });
+          await api.auth.updateProfile({ fcmToken: currentToken });
           console.log('FCM Token registered successfully');
         }
 

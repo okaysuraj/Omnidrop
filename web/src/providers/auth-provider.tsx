@@ -23,6 +23,7 @@ export interface AppUser {
   role: 'CUSTOMER' | 'SHOPKEEPER' | 'DELIVERY_PARTNER' | 'ADMIN';
   isVerified: boolean;
   isActive: boolean;
+  isAvailable?: boolean;
 }
 
 interface AuthContextType {
