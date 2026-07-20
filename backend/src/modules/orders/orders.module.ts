@@ -4,11 +4,11 @@ import { BullModule } from '@nestjs/bullmq';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { OrdersProcessor } from './orders.processor';
-import { Order, OrderItem, CartItem, Inventory, Payment, DeliveryTask, Store } from '../../database/entities';
+import { Order, OrderItem, CartItem, Inventory, Payment, DeliveryTask, Store, User } from '../../database/entities';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, CartItem, Inventory, Payment, DeliveryTask, Store]),
+    TypeOrmModule.forFeature([Order, OrderItem, CartItem, Inventory, Payment, DeliveryTask, Store, User]),
     BullModule.registerQueue({
       name: 'orders',
     }),
