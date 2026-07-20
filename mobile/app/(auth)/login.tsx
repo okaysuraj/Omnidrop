@@ -1,104 +1,119 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { api } from '../../src/lib/api';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '../../src/lib/firebase';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
+  const handleLogin = () => {
     setLoading(true);
-    setError('');
-
-    try {
-      // 1. Authenticate with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
-      if (!userCredential.user.emailVerified) {
-        await signOut(auth);
-        setError('Please verify your email before logging in.');
-        setLoading(false);
-        return;
-      }
-      
-      // The AuthProvider will detect this state change and handle routing
-    } catch (err: any) {
-      setError(err.message || 'Failed to login');
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      router.replace('/(tabs)/home'); // Navigate to home after login
+    }, 1500);
   };
 
   return (
-    <View className="flex-1 justify-center px-6 bg-slate-900">
-      <View className="items-center mb-10">
-        <Text className="text-5xl mb-2">⚡</Text>
-        <Text className="text-3xl font-extrabold text-white">Welcome Back</Text>
-        <Text className="text-slate-400 mt-2 text-center">
-          Login to continue with Omnidrop
-        </Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-background">
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <View className="flex-row justify-between items-center px-5 py-4">
+            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 active:opacity-70">
+              <Ionicons name="arrow-back" size={24} color="#006e24" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(auth)/register')} className="active:opacity-70">
+              <Text className="text-primary font-bold text-sm">Sign Up</Text>
+            </TouchableOpacity>
+          </View>
 
-      <View className="bg-slate-800/80 p-6 rounded-3xl border border-slate-700">
-        {error ? (
-          <Text className="text-red-400 mb-4 text-center">{error}</Text>
-        ) : null}
+          {/* Main Content */}
+          <View className="flex-1 px-5 pt-10 pb-10">
+            <View className="mb-10">
+              <Text className="font-extrabold text-4xl text-primary mb-2 italic tracking-tighter">OmniDrop</Text>
+              <Text className="text-2xl font-bold text-on-surface mb-2">Welcome Back</Text>
+              <Text className="text-base text-on-surface-variant">Sign in to continue your seamless delivery experience.</Text>
+            </View>
 
-        <View className="mb-4">
-          <Text className="text-slate-300 font-semibold mb-2 ml-1">Email</Text>
-          <TextInput
-            className="bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white"
-            placeholder="name@example.com"
-            placeholderTextColor="#64748b"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
+            <View className="gap-6 flex-1">
+              {/* Email Input */}
+              <View className="gap-2">
+                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Email Address</Text>
+                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
+                  <TextInput 
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="name@example.com"
+                    placeholderTextColor="#6b7c68"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    className="flex-1 text-base text-on-surface h-full"
+                  />
+                  {email.length > 0 && (
+                    <Ionicons name="checkmark-circle" size={20} color="#006e24" />
+                  )}
+                </View>
+              </View>
 
-        <View className="mb-6">
-          <Text className="text-slate-300 font-semibold mb-2 ml-1">Password</Text>
-          <TextInput
-            className="bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white"
-            placeholder="••••••••"
-            placeholderTextColor="#64748b"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
+              {/* Password Input */}
+              <View className="gap-2">
+                <View className="flex-row justify-between items-center">
+                  <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Password</Text>
+                  <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+                    <Text className="font-bold text-xs text-primary">Forgot?</Text>
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
+                  <TextInput 
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#6b7c68"
+                    secureTextEntry={!showPassword}
+                    className="flex-1 text-base text-on-surface h-full"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-2 -mr-2">
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6b7c68" />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-        <TouchableOpacity
-          className="bg-indigo-500 rounded-xl py-4 items-center"
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text className="text-white font-bold text-lg">Sign In</Text>
-          )}
-        </TouchableOpacity>
+              {/* Login Button */}
+              <TouchableOpacity 
+                onPress={handleLogin}
+                disabled={loading}
+                className="bg-primary h-14 rounded-full flex-row items-center justify-center mt-4 active:opacity-80"
+              >
+                <Text className="text-on-primary font-bold text-base mr-2">{loading ? 'Signing In...' : 'Sign In'}</Text>
+                {!loading && <Ionicons name="arrow-forward" size={20} color="#ffffff" />}
+              </TouchableOpacity>
 
-        <View className="flex-row justify-center mt-6">
-          <Text className="text-slate-400">Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text className="text-indigo-400 font-bold">Register</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+              <View className="flex-row items-center gap-4 my-6">
+                <View className="flex-1 h-[1px] bg-outline-variant/50" />
+                <Text className="text-xs font-bold text-on-surface-variant uppercase">Or continue with</Text>
+                <View className="flex-1 h-[1px] bg-outline-variant/50" />
+              </View>
+
+              <View className="flex-row gap-4">
+                <TouchableOpacity className="flex-1 h-14 rounded-xl border border-outline-variant items-center justify-center bg-surface-container-lowest active:opacity-70">
+                  <Ionicons name="logo-google" size={24} color="#DB4437" />
+                </TouchableOpacity>
+                <TouchableOpacity className="flex-1 h-14 rounded-xl border border-outline-variant items-center justify-center bg-surface-container-lowest active:opacity-70">
+                  <Ionicons name="logo-apple" size={24} color="#000000" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

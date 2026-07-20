@@ -46,172 +46,171 @@ export default function ExplorePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="page-container">
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="skeleton" style={{ width: 300, height: 200 }} />
-          ))}
-        </div>
+      <div className="flex justify-center items-center h-screen bg-background text-primary">
+        <span className="material-symbols-outlined text-6xl animate-spin">refresh</span>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      {/* Header */}
-      <header style={{
-        padding: '16px 24px',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        background: 'rgba(15, 23, 42, 0.9)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 100,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 24 }}>⚡</span>
-          <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: 1 }}>OMNIDROP</span>
-        </div>
-
-        <div style={{ flex: 1, maxWidth: 500, margin: '0 24px' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              style={{ borderRadius: '12px 0 0 12px' }}
-            />
-            <button onClick={handleSearch} className="btn-primary" style={{ borderRadius: '0 12px 12px 0', padding: '12px 20px' }}>
-              🔍
-            </button>
+    <div className="bg-background selection:bg-primary-container selection:text-on-primary-container text-on-surface">
+      {/* Top Navigation Bar */}
+      <header className="bg-surface border-b border-outline-variant w-full top-0 sticky z-50 shadow-sm flex items-center justify-between px-margin-mobile md:px-margin-desktop py-4 max-w-[1280px] mx-auto">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
+            <h1 className="font-headline-md text-headline-md font-bold text-primary">OmniDrop</h1>
+          </div>
+          <div className="hidden md:flex items-center bg-surface-container rounded-full px-4 py-2 text-on-surface-variant gap-2 transition-all hover:ring-2 hover:ring-primary/20 cursor-pointer">
+            <span className="material-symbols-outlined text-primary">location_on</span>
+            <span className="font-label-bold text-label-bold">Downtown, Manhattan</span>
+            <span className="material-symbols-outlined text-xs">keyboard_arrow_down</span>
           </div>
         </div>
+        
+        {/* Search Bar - added to header for utility */}
+        <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
+          <input
+            type="text"
+            className="w-full bg-surface-container-low border border-outline-variant rounded-full py-2 pl-4 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface"
+            placeholder="Search stores, categories..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button onClick={handleSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-primary p-1 rounded-full hover:bg-surface-container">
+            <span className="material-symbols-outlined text-xl">search</span>
+          </button>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/cart" style={{ color: 'var(--color-text-primary)', textDecoration: 'none', fontSize: 24 }}>
-            🛒
+        <nav className="hidden md:flex items-center gap-8">
+          <Link href="/explore" className="text-primary font-bold font-label-bold flex items-center gap-2 hover:bg-surface-container-high transition-colors rounded-lg px-3 py-2">
+            <span className="material-symbols-outlined">explore</span> Explore
           </Link>
-          <Link href="/orders" style={{ color: 'var(--color-text-primary)', textDecoration: 'none', fontSize: 24 }}>
-            📦
+          <Link href="/orders" className="text-on-surface-variant font-label-bold flex items-center gap-2 hover:bg-surface-container-high transition-colors rounded-lg px-3 py-2">
+            <span className="material-symbols-outlined">receipt_long</span> Orders
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: 'var(--gradient-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 14,
-            }}>
-              {user?.fullName?.[0]?.toUpperCase()}
-            </div>
-            <button onClick={logout} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem' }}>
-              Logout
-            </button>
+        </nav>
+
+        <div className="flex items-center gap-4">
+          <Link href="/cart" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-all relative">
+            <span className="material-symbols-outlined">shopping_cart</span>
+            <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface"></span>
+          </Link>
+          <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold overflow-hidden border-2 border-primary/20 shadow-sm cursor-pointer relative group">
+             {user?.fullName?.[0]?.toUpperCase()}
+             <div className="absolute top-12 right-0 bg-surface shadow-lg rounded-xl border border-outline-variant p-2 hidden group-hover:block min-w-[150px]">
+                <button onClick={logout} className="w-full text-left px-4 py-2 hover:bg-surface-container rounded-lg text-error font-label-bold">Logout</button>
+             </div>
           </div>
         </div>
       </header>
 
-      <div className="page-container">
-        {/* Welcome */}
-        <div className="animate-fade-in" style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 4 }}>
-            Hey {user?.fullName?.split(' ')[0]} 👋
-          </h1>
-          <p style={{ color: 'var(--color-text-secondary)' }}>What would you like to order today?</p>
+      <main className="max-w-[1280px] mx-auto px-margin-mobile md:px-gutter py-md">
+        
+        {/* Welcome Text */}
+        <div className="mb-6">
+          <h2 className="font-headline-md text-headline-md text-on-surface">Hello, {user?.fullName?.split(' ')[0]} 👋</h2>
+          <p className="text-on-surface-variant">What are you looking for today?</p>
         </div>
 
-        {/* Search Results */}
-        {searchResults.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Search Results</h2>
-              <button onClick={() => setSearchResults([])} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>Clear</button>
+        {/* Hero Banner Section */}
+        <section className="relative rounded-[2rem] overflow-hidden mb-xl bg-inverse-surface h-[400px] group shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-inverse-surface via-inverse-surface/60 to-transparent z-10"></div>
+          <div className="relative z-20 h-full flex flex-col justify-center px-lg max-w-2xl">
+            <span className="inline-block px-4 py-1 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold mb-6 animate-pulse w-fit">FLASH SALE • LIVE NOW</span>
+            <h2 className="font-headline-xl text-headline-xl text-white mb-4 leading-tight">50% OFF on <br/><span className="text-primary-container">Fresh Grocery</span></h2>
+            <p className="text-body-lg text-surface-variant mb-8 opacity-90">Experience lightning-fast delivery for your weekly essentials. Local farms, global standards, delivered in under 20 minutes.</p>
+            <div className="flex items-center gap-4">
+              <button className="bg-primary hover:bg-primary-fixed-dim text-white font-label-bold px-8 py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 group-hover:translate-x-2 duration-300">
+                Claim Offer <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
             </div>
-            <div className="product-grid">
-              {searchResults.map((product: any) => (
-                <div key={product.id} className="glass-card" style={{ padding: 16 }}>
-                  <div style={{ width: '100%', height: 120, background: 'var(--color-bg-input)', borderRadius: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-                    🛍️
+          </div>
+          {/* Absolute decorative image */}
+          <div className="absolute right-0 top-0 h-full w-1/2 z-0 hidden md:block overflow-hidden">
+            <img className="w-full h-full object-cover origin-center scale-110 group-hover:scale-100 transition-transform duration-1000" src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000" alt="Groceries" />
+          </div>
+        </section>
+
+        {/* Categories Section */}
+        <section className="mb-xl">
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="font-headline-lg text-headline-lg">Explore Categories</h3>
+            <a className="text-primary font-label-bold flex items-center gap-1 hover:underline cursor-pointer">See all <span className="material-symbols-outlined text-sm">chevron_right</span></a>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-gutter">
+            {categories.length > 0 ? categories.map((cat: any, i: number) => (
+              <Link href={`/products?categoryId=${cat.id}`} key={cat.id} className="flex flex-col items-center gap-4 group cursor-pointer">
+                <div className="w-full aspect-square rounded-[2rem] bg-surface-container-low flex items-center justify-center border-2 border-transparent group-hover:border-primary transition-all group-hover:-translate-y-2">
+                  <span className="material-symbols-outlined text-primary text-5xl group-hover:scale-110 transition-transform">category</span>
+                </div>
+                <span className="font-label-bold text-on-surface text-center">{cat.name}</span>
+              </Link>
+            )) : (
+              // Mock Categories if API empty
+              [
+                {name: 'Grocery', icon: 'shopping_basket'},
+                {name: 'Pharmacy', icon: 'medical_services'},
+                {name: 'Meat & Poultry', icon: 'flatware'},
+                {name: 'Fresh Fruits', icon: 'nutrition'},
+                {name: 'Bakery', icon: 'bakery_dining'},
+                {name: 'Beverages', icon: 'local_drink'},
+              ].map((c, i) => (
+                <div key={i} className="flex flex-col items-center gap-4 group cursor-pointer">
+                  <div className="w-full aspect-square rounded-[2rem] bg-surface-container-low flex items-center justify-center border-2 border-transparent group-hover:border-primary transition-all group-hover:-translate-y-2">
+                    <span className="material-symbols-outlined text-primary text-4xl md:text-5xl group-hover:scale-110 transition-transform">{c.icon}</span>
                   </div>
-                  <h3 style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 4 }}>{product.name}</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>₹{product.sellingPrice}</span>
-                    {product.mrp > product.sellingPrice && (
-                      <span style={{ textDecoration: 'line-through', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>₹{product.mrp}</span>
-                    )}
+                  <span className="font-label-bold text-on-surface text-center text-xs md:text-sm">{c.name}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Nearby Stores / Fastest Delivery */}
+        <section className="mb-xl overflow-hidden">
+          <div className="flex items-center justify-between mb-md">
+            <div className="flex items-center gap-3">
+              <h3 className="font-headline-lg text-headline-lg">Nearby Stores</h3>
+              <div className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-label-bold font-label-bold hidden md:flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">bolt</span> UNDER 15 MIN
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter pb-base">
+            {stores.length > 0 ? stores.map(store => (
+              <Link href={`/stores/${store.id}`} key={store.id} className="flex flex-col rounded-3xl bg-surface-container-lowest p-2 border border-outline-variant group hover:shadow-xl hover:border-primary/30 transition-all duration-300">
+                <div className="relative h-44 rounded-2xl overflow-hidden mb-4 bg-surface-container">
+                   {/* Placeholder image */}
+                  <img src="https://images.unsplash.com/photo-1534723452862-4c8765046038?auto=format&fit=crop&q=80&w=400" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1 rounded-full text-label-bold font-label-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-primary">schedule</span> {store.estimatedDeliveryMinutes || '15'} min
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Categories */}
-        {categories.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 16 }}>Shop by Category</h2>
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-              {categories.map((cat: any) => (
-                <Link key={cat.id} href={`/products?categoryId=${cat.id}`} style={{ textDecoration: 'none' }}>
-                  <div className="glass-card" style={{
-                    padding: '16px 24px',
-                    textAlign: 'center',
-                    minWidth: 120,
-                    cursor: 'pointer',
-                  }}>
-                    <div style={{ fontSize: 28, marginBottom: 6 }}>🏷️</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>{cat.name}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Nearby Stores */}
-        <div style={{ marginBottom: 40 }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 16 }}>Nearby Stores</h2>
-          {stores.length === 0 ? (
-            <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
-              <p style={{ color: 'var(--color-text-secondary)' }}>No stores found nearby. Try expanding your search radius.</p>
-            </div>
-          ) : (
-            <div className="store-grid">
-              {stores.map((store: any) => (
-                <Link key={store.id} href={`/stores/${store.id}`} style={{ textDecoration: 'none' }}>
-                  <div className="glass-card" style={{ padding: 20, cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-text-primary)', marginBottom: 4 }}>{store.name}</h3>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>{store.address?.substring(0, 50)}...</p>
-                      </div>
-                      <span className={`badge ${store.isOpen ? 'badge-success' : 'badge-danger'}`}>
-                        {store.isOpen ? 'Open' : 'Closed'}
-                      </span>
+                <div className="px-3 pb-3">
+                  <h4 className="font-headline-md text-on-surface mb-1">{store.name}</h4>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center text-primary text-sm font-bold">
+                      <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>star</span> {store.rating?.toFixed(1) || '4.8'}
                     </div>
-                    <div style={{ display: 'flex', gap: 16, color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                      <span>⭐ {store.rating?.toFixed(1) || '4.0'}</span>
-                      <span>📍 {store.distance?.toFixed(1) || '?'} km</span>
-                      <span>🕐 {store.estimatedDeliveryMinutes || '~20'} min</span>
-                    </div>
+                    <span className="text-outline text-xs">•</span>
+                    <span className="text-on-surface-variant text-label-md">{store.distance?.toFixed(1) || '0.8'} km</span>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                </div>
+              </Link>
+            )) : (
+              <div className="col-span-full py-12 text-center text-on-surface-variant bg-surface-container-low rounded-[2rem] border-2 border-dashed border-outline-variant">
+                 <span className="material-symbols-outlined text-6xl mb-4 text-outline">store_off</span>
+                 <p className="font-headline-md">No stores found near you</p>
+                 <p className="text-sm">Try changing your location or expanding search radius.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+      </main>
     </div>
   );
 }
