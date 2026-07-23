@@ -1,6 +1,6 @@
 # ⚡ Omnidrop
 
-A production-ready hyperlocal e-commerce marketplace (like Blinkit, Zepto, or Swiggy).
+**Live Website:** [https://omnidropapp.netlify.app](https://omnidropapp.netlify.app)
 
 ## 🎯 Overview
 
