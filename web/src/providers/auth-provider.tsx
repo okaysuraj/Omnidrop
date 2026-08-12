@@ -85,8 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       
       if (!cred.user.emailVerified) {
+        await sendEmailVerification(cred.user);
         await firebaseSignOut(auth);
-        throw new Error('Please verify your email before logging in.');
+        throw new Error('Please verify your email before logging in. A new verification link has been sent to your email.');
       }
       
       const token = await cred.user.getIdToken();
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFirebaseUser(cred.user);
     } catch (err: any) {
       const message = err.code === 'auth/invalid-credential'
-        ? 'Invalid email or password'
+        ? 'Invalid email or password. Please sign up if you do not have an account.'
         : err.message || 'Login failed';
       setError(message);
       throw err;

@@ -3,7 +3,8 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, Inventory } from '../../database/entities';
+import { Order } from '../../database/entities/order.entity';
+import { Inventory } from '../../database/entities/inventory.entity';
 import { OrderStatus } from '../../common/enums';
 import { WsGateway } from '../../websockets/ws.gateway';
 

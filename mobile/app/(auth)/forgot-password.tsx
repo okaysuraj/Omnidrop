@@ -2,18 +2,26 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/providers/auth-provider';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const { resetPassword, error, clearError } = useAuth();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!email) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await resetPassword(email);
+      setSuccess(true);
+    } catch (err) {
+      // Error handled in context
+    } finally {
       setLoading(false);
-      router.push('/(auth)/reset-password');
-    }, 1500);
+    }
   };
 
   return (
@@ -41,7 +49,29 @@ export default function ForgotPasswordScreen() {
               <Text className="text-base text-on-surface-variant">Don't worry! It happens. Please enter the email address associated with your account.</Text>
             </View>
 
-            <View className="gap-6 flex-1">
+            {error && (
+              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
+                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
+                <TouchableOpacity onPress={clearError}>
+                  <Ionicons name="close" size={20} color="#b3261e" />
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            {success ? (
+              <View className="items-center">
+                <View className="bg-primary-container p-4 rounded-xl mb-6 flex-row items-center justify-center">
+                  <Text className="text-on-primary-container font-medium text-center">We've sent a password reset link to {email}</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => router.replace('/(auth)/login')}
+                  className="bg-primary h-14 rounded-full flex-row items-center justify-center w-full active:opacity-80"
+                >
+                  <Text className="text-on-primary font-bold text-base">Back to Login</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="gap-6 flex-1">
               {/* Email Input */}
               <View className="gap-2">
                 <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Email Address</Text>
@@ -62,12 +92,13 @@ export default function ForgotPasswordScreen() {
               <TouchableOpacity 
                 onPress={handleSubmit}
                 disabled={loading || email.length === 0}
-                className={\`h-14 rounded-full flex-row items-center justify-center mt-4 active:opacity-80 \${email.length > 0 ? 'bg-primary' : 'bg-surface-container-high'}\`}
+                className={`h-14 rounded-full flex-row items-center justify-center mt-4 active:opacity-80 ${email.length > 0 ? 'bg-primary' : 'bg-surface-container-high'}`}
               >
-                <Text className={\`font-bold text-base mr-2 \${email.length > 0 ? 'text-on-primary' : 'text-on-surface-variant'}\`}>{loading ? 'Sending...' : 'Send Reset Link'}</Text>
+                <Text className={`font-bold text-base mr-2 ${email.length > 0 ? 'text-on-primary' : 'text-on-surface-variant'}`}>{loading ? 'Sending...' : 'Send Reset Link'}</Text>
                 {!loading && <Ionicons name="arrow-forward" size={20} color={email.length > 0 ? "#ffffff" : "#3b4b39"} />}
               </TouchableOpacity>
             </View>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

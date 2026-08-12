@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,26 +10,39 @@ export default function StoreDetailsScreen() {
   const [store, setStore] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [cartCount, setCartCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, fetch store details and products
-    // Mocking for now to match UI
-    setStore({
-      name: 'Green Leaf Organics',
-      rating: 4.8,
-      reviews: 500,
-      deliveryTime: '12 min',
-      deliveryFee: 0,
-      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'
-    });
-    
-    setProducts([
-      { id: 1, name: 'Organic Hass Avocado', desc: 'Farm-fresh, perfectly ripe avocados from local groves.', price: 2.49, category: 'Seasonal Harvest', image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&q=80&w=400' },
-      { id: 2, name: 'Local Strawberries', desc: 'Sweet, sun-ripened berries picked this morning.', price: 4.99, category: 'Seasonal Harvest', image: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&q=80&w=400' },
-      { id: 3, name: 'Artisan Sourdough', desc: '24-hour fermented, wood-fired sourdough loaf.', price: 6.50, category: 'Fresh Bakery', image: 'https://images.unsplash.com/photo-1585478259715-876acc5be8eb?auto=format&fit=crop&q=80&w=400' },
-      { id: 4, name: 'Butter Croissant', desc: 'Flaky, multi-layered French style butter croissant.', price: 3.25, category: 'Fresh Bakery', image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=400' }
-    ]);
+    const fetchStoreDetails = async () => {
+      try {
+        const storeData = await api.stores.byId(id as string);
+        setStore(storeData);
+        const productsData = await api.products.search(''); // Load generic products for now
+        setProducts(productsData || []);
+      } catch (err) {
+        console.error('Failed to load store details:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchStoreDetails();
   }, [id]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-background justify-center items-center">
+        <ActivityIndicator size="large" color="#00e554" />
+      </View>
+    );
+  }
+
+  if (!store) {
+    return (
+      <View className="flex-1 bg-background justify-center items-center">
+        <Text className="text-on-surface">Store not found.</Text>
+      </View>
+    );
+  }
 
   const seasonalProducts = products.filter(p => p.category === 'Seasonal Harvest');
   const bakeryProducts = products.filter(p => p.category === 'Fresh Bakery');

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/providers/auth-provider';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -23,12 +24,19 @@ export default function RegisterScreen() {
   else if (strength > 50 && strength <= 75) strengthColor = 'bg-primary-fixed-dim';
   else if (strength > 75) strengthColor = 'bg-primary-container';
 
-  const handleRegister = () => {
+  const { register, error, clearError } = useAuth();
+
+  const handleRegister = async () => {
+    if (!email || !password || !fullName) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await register(email, password, fullName, 'CUSTOMER'); // Defaulting to CUSTOMER for now
       router.replace('/(tabs)/home');
-    }, 1500);
+    } catch (err) {
+      // Error is handled in context
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,10 +58,19 @@ export default function RegisterScreen() {
 
           {/* Main Content */}
           <View className="flex-1 px-5 pt-8 pb-10">
-            <View className="mb-8">
+            <View className="mb-6">
               <Text className="text-2xl font-bold text-on-surface mb-2">Create Account</Text>
               <Text className="text-base text-on-surface-variant">Join OmniDrop today and experience delivery reimagined.</Text>
             </View>
+
+            {error && (
+              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
+                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
+                <TouchableOpacity onPress={clearError}>
+                  <Ionicons name="close" size={20} color="#b3261e" />
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View className="gap-6 flex-1">
               {/* Full Name Input */}
@@ -114,7 +131,7 @@ export default function RegisterScreen() {
                 {password.length > 0 && (
                   <View className="pt-1">
                     <View className="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
-                      <View className={\`h-full \${strengthColor}\`} style={{ width: \`\${strength}%\` }} />
+                      <View className={`h-full ${strengthColor}`} style={{ width: `${strength}%` }} />
                     </View>
                   </View>
                 )}

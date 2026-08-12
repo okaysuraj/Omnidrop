@@ -2,20 +2,27 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/providers/auth-provider';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login, error, clearError } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (!email || !password) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await login(email, password);
       router.replace('/(tabs)/home'); // Navigate to home after login
-    }, 1500);
+    } catch (err) {
+      // Error is handled in context and exposed via error state
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,11 +44,20 @@ export default function LoginScreen() {
 
           {/* Main Content */}
           <View className="flex-1 px-5 pt-10 pb-10">
-            <View className="mb-10">
+            <View className="mb-8">
               <Text className="font-extrabold text-4xl text-primary mb-2 italic tracking-tighter">OmniDrop</Text>
               <Text className="text-2xl font-bold text-on-surface mb-2">Welcome Back</Text>
               <Text className="text-base text-on-surface-variant">Sign in to continue your seamless delivery experience.</Text>
             </View>
+
+            {error && (
+              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
+                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
+                <TouchableOpacity onPress={clearError}>
+                  <Ionicons name="close" size={20} color="#b3261e" />
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View className="gap-6 flex-1">
               {/* Email Input */}

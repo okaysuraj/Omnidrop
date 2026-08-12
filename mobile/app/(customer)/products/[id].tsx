@@ -1,32 +1,53 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { api } from '../../../src/lib/api';
 
 export default function ProductDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('Description');
 
   useEffect(() => {
-    // Mock product details
-    setProduct({
-      id: 1,
-      name: 'Premium Organic Avocado Bundle',
-      category: 'Fresh Produce',
-      price: 8.99,
-      originalPrice: 10.99,
-      unit: '4 Pack (approx. 1.2 lbs)',
-      rating: 4.5,
-      reviews: 124,
-      desc: 'Sourced from local organic farms, these Hass avocados are perfect for guacamole, toast, or salads. Delivered ripe and ready to eat within minutes.',
-      image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&q=80&w=800',
-      badges: ['Fastest Delivery', 'Organic']
-    });
+    const fetchProduct = async () => {
+      try {
+        const data = await api.products.byId(id as string);
+        setProduct({
+          ...data,
+          // Map backend fields to UI fields if necessary, or use as is
+          rating: 4.5,
+          reviews: 124,
+          badges: ['Fastest Delivery', 'Organic']
+        });
+      } catch (err) {
+        console.error('Failed to load product', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchProduct();
   }, [id]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-background justify-center items-center">
+        <ActivityIndicator size="large" color="#00e554" />
+      </View>
+    );
+  }
+
+  if (!product) {
+    return (
+      <View className="flex-1 bg-background justify-center items-center">
+        <Text className="text-on-surface">Product not found.</Text>
+      </View>
+    );
+  }
 
   const relatedProducts = [
     { id: 2, name: 'Artisan Sourdough', price: 6.50, category: 'Bakery', image: 'https://images.unsplash.com/photo-1585478259715-876acc5be8eb?auto=format&fit=crop&q=80&w=400' },
@@ -87,7 +108,9 @@ export default function ProductDetailsScreen() {
 
               <View className="flex-row items-baseline gap-4 mb-8">
                 <Text className="text-4xl font-extrabold text-on-surface">${product?.price}</Text>
-                <Text className="text-on-surface-variant text-base line-through">${product?.originalPrice}</Text>
+                {product.originalPrice && (
+                  <Text className="text-sm text-on-surface-variant line-through ml-2">${product.originalPrice}</Text>
+                )}
                 <Text className="text-on-surface-variant text-sm ml-auto">{product?.unit}</Text>
               </View>
 
