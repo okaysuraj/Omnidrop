@@ -1,5 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsObject, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateStoreDto {
   @IsString()

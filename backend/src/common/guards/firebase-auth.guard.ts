@@ -1,17 +1,18 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
-  UnauthorizedException,
+  Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import * as admin from 'firebase-admin';
-import { getAuth } from 'firebase-admin/auth';
 import { InjectRepository } from '@nestjs/typeorm';
+import { getAuth } from 'firebase-admin/auth';
 import { Repository } from 'typeorm';
 import { User } from '../../database/entities';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { getErrorMessage } from '../errors';
+import type { AuthenticatedRequest } from '../http-request';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -31,7 +32,7 @@ export class FirebaseAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -60,7 +61,7 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
-      this.logger.error(`Firebase auth error: ${error.message}`);
+      this.logger.error(`Firebase auth error: ${getErrorMessage(error)}`);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

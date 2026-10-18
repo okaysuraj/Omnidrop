@@ -1,16 +1,16 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
   ManyToOne,
   OneToOne,
-  JoinColumn,
-  Index,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './user.entity';
 import { Order } from './order.entity';
 import { Store } from './store.entity';
+import { User } from './user.entity';
 
 @Entity('reviews')
 export class Review {

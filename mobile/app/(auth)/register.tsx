@@ -1,160 +1,294 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalInput,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { useAuth } from '@/providers/auth-provider';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/providers/auth-provider';
+import { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'CUSTOMER' | 'SHOPKEEPER' | 'DELIVERY_PARTNER'>('CUSTOMER');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Strength calculation
-  let strength = 0;
-  if (password.length >= 8) strength += 25;
-  if (/[A-Z]/.test(password)) strength += 25;
-  if (/[0-9]/.test(password)) strength += 25;
-  if (/[^A-Za-z0-9]/.test(password)) strength += 25;
-
-  let strengthColor = 'bg-error';
-  if (strength > 25 && strength <= 50) strengthColor = 'bg-tertiary';
-  else if (strength > 50 && strength <= 75) strengthColor = 'bg-primary-fixed-dim';
-  else if (strength > 75) strengthColor = 'bg-primary-container';
-
   const { register, error, clearError } = useAuth();
 
   const handleRegister = async () => {
     if (!email || !password || !fullName) return;
     setLoading(true);
     try {
-      await register(email, password, fullName, 'CUSTOMER'); // Defaulting to CUSTOMER for now
-      router.replace('/(tabs)/home');
-    } catch (err) {
-      // Error is handled in context
+      await register(email.trim(), password, fullName.trim(), role);
+      if (role === 'DELIVERY_PARTNER') {
+        router.replace('/(delivery)/dashboard');
+      } else if (role === 'SHOPKEEPER') {
+        router.replace('/(merchant)/orders');
+      } else {
+        router.replace('/(customer)/home');
+      }
+    } catch {
+      // Error handled by Auth context
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ NODE ONBOARDING · OMNIDROP MESH REGISTRY" />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View className="flex-row justify-between items-center px-5 py-4">
-            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 active:opacity-70">
-              <Ionicons name="arrow-back" size={24} color="#006e24" />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: 18 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[
+                {
+                  width: 36,
+                  height: 36,
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.white,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <MaterialIcons name="arrow-back" size={20} color={BrutalColors.black} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/(auth)/login')} className="active:opacity-70">
-              <Text className="text-primary font-bold text-sm">Sign In</Text>
+
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/login')}
+              style={[
+                {
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.white,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Sign In Instead →
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Main Content */}
-          <View className="flex-1 px-5 pt-8 pb-10">
-            <View className="mb-6">
-              <Text className="text-2xl font-bold text-on-surface mb-2">Create Account</Text>
-              <Text className="text-base text-on-surface-variant">Join OmniDrop today and experience delivery reimagined.</Text>
+          {/* Main Card */}
+          <BrutalCard style={{ padding: 20, marginBottom: 20 }}>
+            <View style={{ marginBottom: 18 }}>
+              <BrutalBadge
+                label="// SYSTEM PROVISIONING"
+                variant="yellow"
+                style={{ marginBottom: 8 }}
+              />
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: '900',
+                  color: BrutalColors.black,
+                  textTransform: 'uppercase',
+                  letterSpacing: -0.5,
+                }}
+              >
+                Register New Node
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#555',
+                  marginTop: 4,
+                  lineHeight: 17,
+                }}
+              >
+                Select your participant role in the Omnidrop mesh and configure access credentials.
+              </Text>
+            </View>
+
+            {/* Role Selector Cards */}
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+                marginBottom: 8,
+                letterSpacing: 0.5,
+              }}
+            >
+              Select Operating Role:
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+              {[
+                { id: 'CUSTOMER', label: 'Customer', desc: 'Doorstep Drops', icon: 'shopping-bag' },
+                { id: 'SHOPKEEPER', label: 'Merchant', desc: 'Store Hub', icon: 'store' },
+                {
+                  id: 'DELIVERY_PARTNER',
+                  label: 'Courier',
+                  desc: 'Flight Pilot',
+                  icon: 'two-wheeler',
+                },
+              ].map((r) => {
+                const isSelected = role === r.id;
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    onPress={() => setRole(r.id as typeof role)}
+                    activeOpacity={0.8}
+                    style={[
+                      {
+                        flex: 1,
+                        borderWidth: 2,
+                        borderColor: BrutalColors.black,
+                        backgroundColor: isSelected ? BrutalColors.yellow : BrutalColors.white,
+                        paddingVertical: 10,
+                        paddingHorizontal: 6,
+                        alignItems: 'center',
+                      },
+                      isSelected ? BrutalShadow.sm : {},
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={r.icon as React.ComponentProps<typeof MaterialIcons>['name']}
+                      size={20}
+                      color={BrutalColors.black}
+                      style={{ marginBottom: 4 }}
+                    />
+                    <Text
+                      style={{
+                        fontWeight: '900',
+                        fontSize: 11,
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {r.label}
+                    </Text>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#555', marginTop: 1 }}>
+                      {r.desc}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {error && (
-              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
-                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
-                <TouchableOpacity onPress={clearError}>
-                  <Ionicons name="close" size={20} color="#b3261e" />
+              <View
+                style={{
+                  backgroundColor: '#FFEBEA',
+                  borderWidth: 2,
+                  borderColor: BrutalColors.red,
+                  padding: 10,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}
+                >
+                  <MaterialIcons
+                    name="error-outline"
+                    size={16}
+                    color={BrutalColors.red}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={{ color: BrutalColors.red, fontWeight: '800', fontSize: 11, flex: 1 }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={clearError} style={{ padding: 2 }}>
+                  <MaterialIcons name="close" size={16} color={BrutalColors.red} />
                 </TouchableOpacity>
               </View>
             )}
 
-            <View className="gap-6 flex-1">
-              {/* Full Name Input */}
-              <View className="gap-2">
-                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Full Name</Text>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14 focus:border-primary">
-                  <TextInput 
-                    value={fullName}
-                    onChangeText={setFullName}
-                    placeholder="Alex Rivers"
-                    placeholderTextColor="#6b7c68"
-                    autoCapitalize="words"
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                  {fullName.length > 2 && (
-                    <Ionicons name="checkmark-circle" size={20} color="#006e24" />
-                  )}
-                </View>
-              </View>
+            <BrutalInput
+              label="Operator Full Name"
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="e.g. Alex Rivers"
+              autoCapitalize="words"
+              leftIcon="person"
+            />
 
-              {/* Email Input */}
-              <View className="gap-2">
-                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Email Address</Text>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
-                  <TextInput 
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="name@example.com"
-                    placeholderTextColor="#6b7c68"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                  {email.length > 0 && (
-                    <Ionicons name="checkmark-circle" size={20} color="#006e24" />
-                  )}
-                </View>
-              </View>
+            <BrutalInput
+              label="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="operator@omnidrop.network"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon="email"
+            />
 
-              {/* Password Input */}
-              <View className="gap-2">
-                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Password</Text>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
-                  <TextInput 
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Min. 8 characters"
-                    placeholderTextColor="#6b7c68"
-                    secureTextEntry={!showPassword}
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-2 -mr-2">
-                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6b7c68" />
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Strength Indicator */}
-                {password.length > 0 && (
-                  <View className="pt-1">
-                    <View className="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
-                      <View className={`h-full ${strengthColor}`} style={{ width: `${strength}%` }} />
-                    </View>
-                  </View>
-                )}
-              </View>
+            <BrutalInput
+              label="Create Passkey"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Minimum 8 characters"
+              secureTextEntry={!showPassword}
+              leftIcon="lock"
+              rightIcon={showPassword ? 'visibility-off' : 'visibility'}
+              onRightIconPress={() => setShowPassword(!showPassword)}
+              autoCapitalize="none"
+            />
 
-              {/* Terms Checkbox placeholder - keeping it simple for now */}
-              <View className="flex-row items-center mt-2 pr-4">
-                <Text className="text-xs text-on-surface-variant flex-1 flex-wrap">
-                  By creating an account, you agree to our <Text className="font-bold text-primary">Terms of Service</Text> and <Text className="font-bold text-primary">Privacy Policy</Text>.
-                </Text>
-              </View>
-
-              {/* Register Button */}
-              <TouchableOpacity 
-                onPress={handleRegister}
-                disabled={loading}
-                className="bg-primary h-14 rounded-full flex-row items-center justify-center mt-2 active:opacity-80"
-              >
-                <Text className="text-on-primary font-bold text-base mr-2">{loading ? 'Creating Account...' : 'Create Account'}</Text>
-                {!loading && <Ionicons name="arrow-forward" size={20} color="#ffffff" />}
-              </TouchableOpacity>
-            </View>
-          </View>
+            <BrutalButton
+              title="Initialize Node →"
+              onPress={handleRegister}
+              loading={loading}
+              variant="yellow"
+              size="lg"
+              fullWidth
+              style={{ marginTop: 8 }}
+            />
+          </BrutalCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -1,8 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalInput,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { useAuth } from '@/providers/auth-provider';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/providers/auth-provider';
+import { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -16,118 +32,341 @@ export default function LoginScreen() {
     if (!email || !password) return;
     setLoading(true);
     try {
-      await login(email, password);
-      router.replace('/(tabs)/home'); // Navigate to home after login
-    } catch (err) {
-      // Error is handled in context and exposed via error state
+      const dbUser = await login(email.trim(), password);
+      if (dbUser?.role === 'DELIVERY_PARTNER') {
+        router.replace('/(delivery)/dashboard');
+      } else if (dbUser?.role === 'SHOPKEEPER' || dbUser?.role === 'ADMIN') {
+        router.replace('/(merchant)/orders');
+      } else {
+        router.replace('/(customer)/home');
+      }
+    } catch {
+      // Error handled by Auth context
     } finally {
       setLoading(false);
     }
   };
 
+  const fillQuickAuth = (userEmail: string) => {
+    setEmail(userEmail);
+    setPassword('password123');
+    if (error) clearError();
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ HYPERLOCAL MESH · AUTHENTICATION TERMINAL" />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View className="flex-row justify-between items-center px-5 py-4">
-            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 active:opacity-70">
-              <Ionicons name="arrow-back" size={24} color="#006e24" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/(auth)/register')} className="active:opacity-70">
-              <Text className="text-primary font-bold text-sm">Sign Up</Text>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: 18, justifyContent: 'center' }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Brand Bar */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={[
+                  {
+                    width: 38,
+                    height: 38,
+                    backgroundColor: BrutalColors.yellow,
+                    borderWidth: 2,
+                    borderColor: BrutalColors.black,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 10,
+                  },
+                  BrutalShadow.sm,
+                ]}
+              >
+                <Text style={{ color: BrutalColors.black, fontWeight: '900', fontSize: 20 }}>
+                  Ω
+                </Text>
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontWeight: '900',
+                    fontSize: 20,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    color: BrutalColors.black,
+                  }}
+                >
+                  Omnidrop
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontWeight: '800',
+                    color: '#666',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  12-Min Hyperlocal Mesh
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(auth)/register')}
+              style={[
+                {
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.white,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Register →
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Main Content */}
-          <View className="flex-1 px-5 pt-10 pb-10">
-            <View className="mb-8">
-              <Text className="font-extrabold text-4xl text-primary mb-2 italic tracking-tighter">OmniDrop</Text>
-              <Text className="text-2xl font-bold text-on-surface mb-2">Welcome Back</Text>
-              <Text className="text-base text-on-surface-variant">Sign in to continue your seamless delivery experience.</Text>
+          {/* Main Brutalist Card */}
+          <BrutalCard style={{ padding: 20, marginBottom: 20 }}>
+            <View style={{ marginBottom: 18 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
+                <BrutalBadge label="// SECURE GATEWAY" variant="yellow" />
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '900',
+                    color: '#777',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  NODE V2.4
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: '900',
+                  color: BrutalColors.black,
+                  textTransform: 'uppercase',
+                  letterSpacing: -0.5,
+                }}
+              >
+                Operator Sign In
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#555',
+                  marginTop: 4,
+                  lineHeight: 17,
+                }}
+              >
+                Authenticate your terminal to access live corridor dispatch, inventory, and order
+                fulfillment.
+              </Text>
             </View>
 
             {error && (
-              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
-                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
-                <TouchableOpacity onPress={clearError}>
-                  <Ionicons name="close" size={20} color="#b3261e" />
+              <View
+                style={{
+                  backgroundColor: '#FFEBEA',
+                  borderWidth: 2,
+                  borderColor: BrutalColors.red,
+                  padding: 10,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}
+                >
+                  <MaterialIcons
+                    name="error-outline"
+                    size={16}
+                    color={BrutalColors.red}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={{ color: BrutalColors.red, fontWeight: '800', fontSize: 11, flex: 1 }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={clearError} style={{ padding: 2 }}>
+                  <MaterialIcons name="close" size={16} color={BrutalColors.red} />
                 </TouchableOpacity>
               </View>
             )}
 
-            <View className="gap-6 flex-1">
-              {/* Email Input */}
-              <View className="gap-2">
-                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Email Address</Text>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
-                  <TextInput 
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="name@example.com"
-                    placeholderTextColor="#6b7c68"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                  {email.length > 0 && (
-                    <Ionicons name="checkmark-circle" size={20} color="#006e24" />
-                  )}
-                </View>
-              </View>
+            <BrutalInput
+              label="Operator Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="operator@omnidrop.network"
+              keyboardType="email-address"
+              leftIcon="email"
+              autoCapitalize="none"
+            />
 
-              {/* Password Input */}
-              <View className="gap-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Password</Text>
-                  <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
-                    <Text className="font-bold text-xs text-primary">Forgot?</Text>
-                  </TouchableOpacity>
-                </View>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
-                  <TextInput 
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Enter your password"
-                    placeholderTextColor="#6b7c68"
-                    secureTextEntry={!showPassword}
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-2 -mr-2">
-                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6b7c68" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Login Button */}
-              <TouchableOpacity 
-                onPress={handleLogin}
-                disabled={loading}
-                className="bg-primary h-14 rounded-full flex-row items-center justify-center mt-4 active:opacity-80"
+            <View style={{ marginBottom: 6 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 5,
+                }}
               >
-                <Text className="text-on-primary font-bold text-base mr-2">{loading ? 'Signing In...' : 'Sign In'}</Text>
-                {!loading && <Ionicons name="arrow-forward" size={20} color="#ffffff" />}
-              </TouchableOpacity>
-
-              <View className="flex-row items-center gap-4 my-6">
-                <View className="flex-1 h-[1px] bg-outline-variant/50" />
-                <Text className="text-xs font-bold text-on-surface-variant uppercase">Or continue with</Text>
-                <View className="flex-1 h-[1px] bg-outline-variant/50" />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  Passkey
+                </Text>
+                <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '800',
+                      color: BrutalColors.black,
+                      textDecorationLine: 'underline',
+                    }}
+                  >
+                    Forgot Passkey?
+                  </Text>
+                </TouchableOpacity>
               </View>
+              <BrutalInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter account passkey"
+                secureTextEntry={!showPassword}
+                leftIcon="lock"
+                rightIcon={showPassword ? 'visibility-off' : 'visibility'}
+                onRightIconPress={() => setShowPassword(!showPassword)}
+                autoCapitalize="none"
+              />
+            </View>
 
-              <View className="flex-row gap-4">
-                <TouchableOpacity className="flex-1 h-14 rounded-xl border border-outline-variant items-center justify-center bg-surface-container-lowest active:opacity-70">
-                  <Ionicons name="logo-google" size={24} color="#DB4437" />
-                </TouchableOpacity>
-                <TouchableOpacity className="flex-1 h-14 rounded-xl border border-outline-variant items-center justify-center bg-surface-container-lowest active:opacity-70">
-                  <Ionicons name="logo-apple" size={24} color="#000000" />
-                </TouchableOpacity>
+            <BrutalButton
+              title="Authorize Session →"
+              onPress={handleLogin}
+              loading={loading}
+              variant="yellow"
+              size="lg"
+              fullWidth
+              style={{ marginTop: 6 }}
+            />
+
+            {/* Quick Test Node Fillers */}
+            <View
+              style={{
+                marginTop: 22,
+                paddingTop: 16,
+                borderTopWidth: 2,
+                borderTopColor: '#EEEEEE',
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: '#666',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Quick Fill Node Credentials:
+                </Text>
+                <BrutalBadge label="SANDBOX" variant="black" size="xs" />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Admin', email: 'suraj14879@gmail.com', variant: 'yellow' as const },
+                  { label: 'Merchant', email: 'shopkeeper@test.com', variant: 'white' as const },
+                  { label: 'Courier', email: 'rider@test.com', variant: 'green' as const },
+                  { label: 'Customer', email: 'customer@test.com', variant: 'white' as const },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.label}
+                    onPress={() => fillQuickAuth(item.email)}
+                    activeOpacity={0.8}
+                    style={[
+                      {
+                        borderWidth: 1.5,
+                        borderColor: BrutalColors.black,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        backgroundColor:
+                          item.variant === 'yellow'
+                            ? BrutalColors.yellow
+                            : item.variant === 'green'
+                              ? BrutalColors.green
+                              : '#FFFFFF',
+                      },
+                      BrutalShadow.sm,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {item.label} Node
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
-          </View>
+          </BrutalCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

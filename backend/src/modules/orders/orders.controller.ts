@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
-import { OrdersService } from './orders.service';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole, OrderStatus, PaymentMethod } from '../../common/enums';
+import { OrderStatus, UserRole } from '../../common/enums';
 import { User } from '../../database/entities';
+import type { CheckoutInput } from './checkout.service';
+import { OrdersService } from './orders.service';
 
 @Controller('orders')
 export class OrdersController {
@@ -11,18 +12,7 @@ export class OrdersController {
 
   @Roles(UserRole.CUSTOMER)
   @Post()
-  checkout(
-    @CurrentUser() user: User,
-    @Body() data: {
-      deliveryAddress: string;
-      deliveryLat: number;
-      deliveryLng: number;
-      deliveryInstructions?: string;
-      paymentMethod: PaymentMethod;
-      tip?: number;
-      promotionCode?: string;
-    },
-  ) {
+  checkout(@CurrentUser() user: User, @Body() data: CheckoutInput) {
     return this.ordersService.checkout(user.id, data);
   }
 
@@ -53,21 +43,22 @@ export class OrdersController {
   @Get('store/:storeId')
   findByStore(
     @Param('storeId') storeId: string,
+    @CurrentUser() user: User,
     @Query('status') status?: OrderStatus,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.ordersService.findByStore(storeId, status, page, pageSize);
+    return this.ordersService.findByStore(storeId, user, status, page, pageSize);
   }
 
-  @Roles(UserRole.SHOPKEEPER, UserRole.ADMIN)
+  @Roles(UserRole.SHOPKEEPER, UserRole.DELIVERY_PARTNER, UserRole.ADMIN)
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
     @CurrentUser() user: User,
     @Body() data: { status: OrderStatus },
   ) {
-    return this.ordersService.updateStatus(id, data.status, user.id);
+    return this.ordersService.updateStatus(id, data.status, user.id, user);
   }
 
   @Roles(UserRole.CUSTOMER)

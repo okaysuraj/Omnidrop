@@ -1,256 +1,391 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import { BrutalFooter } from '@/components/shared/brutal-footer';
+import { BrutalNav } from '@/components/shared/brutal-nav';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
+import { ArrowRight, Clock, Navigation, Store } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 
 export default function BusinessProfileSetupScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [storeName, setStoreName] = useState('');
+  const [storeDescription, setStoreDescription] = useState('');
+  const [storeAddress, setStoreAddress] = useState('Indiranagar 100ft Road, Bengaluru');
   const [radius, setRadius] = useState(5.0);
+  const [category, setCategory] = useState('Grocery & Fresh Produce');
+  const [existingStore, setExistingStore] = useState<Models.Store | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchStore = async () => {
+      try {
+        const stores = await api.stores.myStores().catch(() => []);
+        if (stores && stores.length > 0) {
+          const s = stores[0];
+          setExistingStore(s);
+          setStoreName(s.name || '');
+          setStoreDescription(s.description || '');
+          if (s.address) setStoreAddress(s.address);
+          if (s.radiusKm) setRadius(Number(s.radiusKm));
+        }
+      } catch (err) {
+        console.error('Failed to load store profile', err);
+      }
+    };
+    fetchStore();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!storeName.trim()) {
+      alert('Please provide a store name.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      if (existingStore) {
+        await api.stores.update(existingStore.id, {
+          name: storeName.trim(),
+          description: storeDescription.trim(),
+          address: storeAddress.trim(),
+          radiusKm: radius,
+          lat: existingStore.lat || 12.9716,
+          lng: existingStore.lng || 77.5946,
+        });
+      } else {
+        await api.stores.create({
+          name: storeName.trim(),
+          description: storeDescription.trim(),
+          address: storeAddress.trim(),
+          radiusKm: radius,
+          lat: 12.9716,
+          lng: 77.5946,
+        });
+      }
       router.push('/shopkeeper/financial-setup');
-    }, 1500);
+    } catch (err) {
+      alert(getErrorMessage(err) || 'Failed to save store profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const estimatedHouseholds = Math.round(18000 * Math.pow(radius / 5, 1.8));
+
   return (
-    <div className="bg-background text-on-background min-h-screen">
-      
-      {/* Top Navigation */}
-      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-5 md:px-10 h-16 bg-surface-container-lowest shadow-sm border-b border-outline-variant/30">
-        <div className="flex items-center gap-4">
-          <span className="text-xl font-extrabold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>OmniDrop Merchant</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="material-symbols-outlined text-on-surface-variant p-2 rounded-full hover:bg-surface-variant/50 transition-colors cursor-pointer">help</button>
-          <button className="material-symbols-outlined text-on-surface-variant p-2 rounded-full hover:bg-surface-variant/50 transition-colors cursor-pointer">notifications</button>
-          <div className="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant">
-            <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&q=80&w=200" alt="Profile" />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+      <BrutalNav />
 
-      {/* SideNavBar */}
-      <aside className="hidden lg:flex flex-col pt-6 gap-2 border-r border-outline-variant/30 h-[calc(100vh-64px)] w-64 fixed left-0 top-16 bg-surface-container-low">
-        <div className="px-6 mb-6">
-          <h2 className="text-xl font-bold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>Onboarding</h2>
-          <div className="mt-2 w-full bg-surface-variant h-1.5 rounded-full overflow-hidden">
-            <div className="bg-primary h-full w-[40%] transition-all duration-1000"></div>
-          </div>
-          <p className="text-xs font-medium text-on-surface-variant mt-1">40% Complete</p>
-        </div>
-        
-        <nav className="flex-1 space-y-1">
-          {/* Active Tab: Store Info */}
-          <div className="flex items-center gap-3 bg-primary-container text-on-primary-container rounded-lg px-4 py-3 mx-2 active:translate-x-1 duration-150 cursor-pointer shadow-sm">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>storefront</span>
-            <span className="text-sm font-bold">Store Info</span>
-          </div>
-          <div className="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant rounded-lg transition-all cursor-pointer">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span className="text-sm font-bold">Inventory</span>
-          </div>
-          <div className="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant rounded-lg transition-all cursor-pointer">
-            <span className="material-symbols-outlined">local_shipping</span>
-            <span className="text-sm font-bold">Shipping</span>
-          </div>
-          <div className="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant rounded-lg transition-all cursor-pointer">
-            <span className="material-symbols-outlined">payments</span>
-            <span className="text-sm font-bold">Payments</span>
-          </div>
-          <div className="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant rounded-lg transition-all cursor-pointer opacity-50">
-            <span className="material-symbols-outlined">rocket_launch</span>
-            <span className="text-sm font-bold">Launch</span>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 w-full min-h-screen px-5 md:px-12 py-10 pt-24">
-        <div className="max-w-6xl mx-auto">
-          
-          <header className="mb-10">
-            <h1 className="text-4xl font-extrabold text-on-surface mb-2" style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '-0.02em' }}>Business Profile & Operations</h1>
-            <p className="text-lg text-on-surface-variant max-w-2xl" style={{ fontFamily: 'Inter, sans-serif' }}>Set up your digital storefront presence and delivery boundaries to start accepting instant orders.</p>
-          </header>
-
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Left Column: Details & Hours */}
-              <div className="lg:col-span-5 space-y-6">
-                
-                {/* Store Details */}
-                <div className="bg-surface-container-lowest rounded-xl p-6 shadow-lg border border-outline-variant/30">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                    <span className="material-symbols-outlined text-primary">info</span> Store Identity
-                  </h3>
-                  
-                  <div className="space-y-6">
-                    <div className="group">
-                      <label className="text-sm font-bold block mb-1 text-on-surface-variant group-focus-within:text-primary transition-colors">Store Name</label>
-                      <input required className="w-full bg-surface-container-low border border-outline-variant/30 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-3 transition-all outline-none text-base" placeholder="e.g. Velocity Fresh Market" type="text" />
-                    </div>
-                    <div className="group">
-                      <label className="text-sm font-bold block mb-1 text-on-surface-variant group-focus-within:text-primary transition-colors">Business Category</label>
-                      <select required className="w-full bg-surface-container-low border border-outline-variant/30 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-3 transition-all outline-none text-base appearance-none">
-                        <option>Grocery & Fresh Produce</option>
-                        <option>Bakery & Cafe</option>
-                        <option>Pharmacy</option>
-                        <option>Convenience Store</option>
-                      </select>
-                    </div>
-                    <div className="group">
-                      <label className="text-sm font-bold block mb-1 text-on-surface-variant group-focus-within:text-primary transition-colors">Store Description</label>
-                      <textarea required className="w-full bg-surface-container-low border border-outline-variant/30 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-3 transition-all outline-none text-base resize-none" placeholder="Tell customers about your fresh offerings..." rows={3}></textarea>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Business Hours */}
-                <div className="bg-surface-container-lowest rounded-xl p-6 shadow-lg border border-outline-variant/30">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                      <span className="material-symbols-outlined text-primary">schedule</span> Operating Hours
-                    </h3>
-                    <button type="button" className="text-primary text-xs font-bold hover:underline">Apply to All</button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-surface-variant last:border-0">
-                      <span className="text-base w-24">Mon - Fri</span>
-                      <div className="flex items-center gap-2">
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary/20" type="time" defaultValue="08:00" />
-                        <span className="text-on-surface-variant">to</span>
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary/20" type="time" defaultValue="20:00" />
-                      </div>
-                      <div className="flex items-center">
-                        <input defaultChecked className="rounded text-primary focus:ring-primary w-5 h-5 cursor-pointer" type="checkbox" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between py-2 border-b border-surface-variant last:border-0">
-                      <span className="text-base w-24">Saturday</span>
-                      <div className="flex items-center gap-2">
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary/20" type="time" defaultValue="09:00" />
-                        <span className="text-on-surface-variant">to</span>
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary/20" type="time" defaultValue="18:00" />
-                      </div>
-                      <div className="flex items-center">
-                        <input defaultChecked className="rounded text-primary focus:ring-primary w-5 h-5 cursor-pointer" type="checkbox" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between py-2 border-b border-surface-variant last:border-0">
-                      <span className="text-base w-24 text-on-surface-variant">Sunday</span>
-                      <div className="flex items-center gap-2 opacity-50 pointer-events-none">
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm" disabled type="time" />
-                        <span className="text-on-surface-variant">to</span>
-                        <input className="bg-surface-container-low border-none rounded-md px-2 py-1 text-sm" disabled type="time" />
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-xs font-medium text-error mr-2">Closed</span>
-                        <input className="rounded text-primary focus:ring-primary w-5 h-5 cursor-pointer" type="checkbox" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Map */}
-              <div className="lg:col-span-7 h-full">
-                <div className="bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/30 overflow-hidden flex flex-col h-full min-h-[600px]">
-                  
-                  {/* Map Header Controls */}
-                  <div className="p-6 border-b border-outline-variant/30 bg-surface-container-lowest z-10">
-                    <h3 className="text-xl font-bold mb-2 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                      <span className="material-symbols-outlined text-primary">distance</span> Delivery Radius
-                    </h3>
-                    <p className="text-sm text-on-surface-variant">Define the geographical area where you'll offer instant delivery services.</p>
-                  </div>
-                  
-                  {/* Interactive Map Area */}
-                  <div className="relative flex-1 bg-surface-variant overflow-hidden group">
-                    <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800')", filter: 'grayscale(100%) opacity(0.3)' }}></div>
-                    
-                    {/* Delivery Radius Visualization */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-primary bg-primary/20 transition-all duration-300 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]" style={{ width: 300 + (radius - 5) * 50, height: 300 + (radius - 5) * 50 }}>
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full ring-4 ring-white shadow-lg"></div>
-                    </div>
-                    
-                    {/* Floating Reach Indicator */}
-                    <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-lg z-20 w-48 border border-white/30">
-                      <p className="text-xs font-bold text-primary mb-1 uppercase">Est. Reach</p>
-                      <p className="text-2xl font-bold text-on-surface">{(14.2 * (radius/5) * 1.05).toFixed(1)}k</p>
-                      <p className="text-sm text-on-surface-variant">Active Customers</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary scale-75">bolt</span>
-                        <span className="text-[10px] font-bold text-primary">OPTIMAL ZONE</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Map Footer Controls */}
-                  <div className="p-6 bg-surface-container-lowest border-t border-outline-variant/30">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs font-bold text-on-surface-variant uppercase">Coverage Distance</span>
-                      <span className="text-xl font-bold text-primary">{radius.toFixed(1)} km</span>
-                    </div>
-                    
-                    <input 
-                      type="range" 
-                      min="1" max="15" step="0.5" 
-                      value={radius} 
-                      onChange={(e) => setRadius(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary mb-6" 
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
-                        <p className="text-xs text-on-surface-variant mb-1 font-medium">Base Delivery Fee</p>
-                        <p className="text-xl font-bold text-primary">$2.99</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
-                        <p className="text-xs text-on-surface-variant mb-1 font-medium">Avg. Delivery Time</p>
-                        <p className="text-xl font-bold text-primary">12-18 min</p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
+      <main className="container-brutal py-8 sm:py-12 space-y-8">
+        {/* Header Breadcrumb & Subnav */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
+              {'// MERCHANT ONBOARDING · STEP 01 OF 02'}
             </div>
+            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+              Micro-Hub Store Profile
+            </h1>
+            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+              Configure physical store geo-fence, hyper-local corridor radius, and operational
+              shifts.
+            </p>
+          </div>
 
-            {/* Action Bar */}
-            <div className="mt-10 flex flex-col md:flex-row justify-between items-center gap-6 py-6 border-t border-outline-variant/30">
-              <button type="button" className="flex items-center gap-2 text-on-surface-variant text-sm font-bold hover:text-primary transition-colors py-3 px-6">
-                <span className="material-symbols-outlined">arrow_back</span>
-                Back to Basic Info
-              </button>
-              
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                <button type="button" className="flex-1 md:flex-none border border-outline-variant text-on-surface-variant text-sm font-bold px-8 py-3 rounded-xl hover:bg-surface-variant transition-all active:scale-95">
-                  Save Draft
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="flex-1 md:flex-none bg-primary text-on-primary text-lg font-bold px-10 py-3 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
+          <div className="flex items-center gap-2">
+            <span className="font-tech text-xs bg-white text-black font-bold uppercase px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_#000]">
+              Status: {existingStore ? 'Active Node' : 'Unregistered'}
+            </span>
+          </div>
+        </div>
+
+        {/* Portal Tabs Bar */}
+        <div className="flex flex-wrap gap-2 font-tech text-xs uppercase font-bold">
+          <Link
+            href="/shopkeeper/dashboard"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            📦 Shelf Inventory
+          </Link>
+          <Link
+            href="/shopkeeper/orders"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            📋 Fulfill Orders
+          </Link>
+          <Link
+            href="/shopkeeper/profile-setup"
+            className="px-4 py-2 border-2 border-black bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]"
+          >
+            ⚙️ Hub Profile
+          </Link>
+          <Link
+            href="/shopkeeper/financial-setup"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            💳 Banking & Payouts
+          </Link>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+        >
+          {/* Left Column: Store Details & Timings */}
+          <div className="lg:col-span-6 space-y-6">
+            {/* 1. Store Identity */}
+            <div className="card-brutal p-6 space-y-4">
+              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
+                <Store className="w-5 h-5 text-black" />
+                1. Store Identity & Street Location
+              </h2>
+
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Commercial Store Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Organic Greens Micro-Hub"
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  className="input-brutal text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Business Domain / Category
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="input-brutal text-sm bg-white cursor-pointer"
                 >
-                  {loading ? 'Processing...' : 'Next Step'}
-                  {!loading && <span className="material-symbols-outlined">arrow_forward</span>}
-                </button>
+                  <option>Grocery & Fresh Produce</option>
+                  <option>Artisan Bakery & Cafe</option>
+                  <option>Pharmacy & Healthcare</option>
+                  <option>Specialty Gourmet & Snacks</option>
+                  <option>Dairy & Farm Fresh</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Physical Store Address (For Courier Pickup) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 542, 12th Main Road, Indiranagar, Bengaluru"
+                  value={storeAddress}
+                  onChange={(e) => setStoreAddress(e.target.value)}
+                  className="input-brutal text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Hub Bio / Customer Description
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Neighborhood organic micro-fulfillment depot stocked with certified farm harvest..."
+                  value={storeDescription}
+                  onChange={(e) => setStoreDescription(e.target.value)}
+                  className="input-brutal text-sm resize-none"
+                />
               </div>
             </div>
 
-          </form>
-        </div>
+            {/* 2. Operational Hours */}
+            <div className="card-brutal p-6 space-y-4">
+              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
+                <Clock className="w-5 h-5 text-black" />
+                2. Operational Shifts & Dispatch Readiness
+              </h2>
+
+              <div className="space-y-3 font-tech text-xs">
+                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="w-4 h-4 accent-black cursor-pointer"
+                    />
+                    <span className="font-bold text-neutral-900">Mon - Fri Weekdays</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      07:00 AM
+                    </span>
+                    <span>to</span>
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      11:00 PM
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="w-4 h-4 accent-black cursor-pointer"
+                    />
+                    <span className="font-bold text-neutral-900">Saturday Peak</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      08:00 AM
+                    </span>
+                    <span>to</span>
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      11:30 PM
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="w-4 h-4 accent-black cursor-pointer"
+                    />
+                    <span className="font-bold text-neutral-900">Sunday Brunch & Evening</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      08:00 AM
+                    </span>
+                    <span>to</span>
+                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                      10:00 PM
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Geo-Corridor Radar & Submission */}
+          <div className="lg:col-span-6 space-y-6 lg:sticky lg:top-24">
+            <div className="card-brutal p-6 bg-white space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b-2 border-black">
+                <h3 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-black" />
+                  Hyperlocal Service Radius
+                </h3>
+                <span className="px-2.5 py-0.5 bg-[#FFE600] text-black font-tech text-xs font-bold border border-black shadow-[1px_1px_0px_#000]">
+                  {radius.toFixed(1)} KM CORRIDOR
+                </span>
+              </div>
+
+              {/* Graphic Radar Simulation */}
+              <div className="relative h-64 bg-neutral-900 border-2 border-black overflow-hidden flex items-center justify-center p-4">
+                {/* Radial Grid Rings */}
+                <div className="absolute inset-0 bg-brutal-grid opacity-20"></div>
+                <div className="absolute w-48 h-48 rounded-full border border-neutral-700"></div>
+                <div className="absolute w-32 h-32 rounded-full border border-neutral-600"></div>
+                <div className="absolute w-16 h-16 rounded-full border border-neutral-500"></div>
+
+                {/* Crosshairs */}
+                <div className="absolute w-full h-[1px] bg-neutral-700"></div>
+                <div className="absolute h-full w-[1px] bg-neutral-700"></div>
+
+                {/* Geo-Circle Visualization */}
+                <div
+                  className="rounded-full border-2 border-[#00E599] bg-[#00E599]/20 transition-all duration-300 flex items-center justify-center relative"
+                  style={{
+                    width: `${Math.min(220, 60 + radius * 12)}px`,
+                    height: `${Math.min(220, 60 + radius * 12)}px`,
+                  }}
+                >
+                  <div className="w-4 h-4 bg-[#FFE600] border-2 border-black rounded-full animate-ping"></div>
+                  <div className="w-3 h-3 bg-[#FFE600] border-2 border-black rounded-full absolute"></div>
+                </div>
+
+                {/* Radar Floating Stat */}
+                <div className="absolute bottom-3 left-3 bg-black/90 border border-white text-white p-2 font-tech text-[10px]">
+                  <p className="text-[#00E599] font-bold">LAT: 12.9716° N</p>
+                  <p className="text-neutral-400">LNG: 77.5946° E</p>
+                </div>
+              </div>
+
+              {/* Radius Control Slider */}
+              <div className="space-y-2">
+                <div className="flex justify-between font-tech text-xs font-bold uppercase">
+                  <span>Dispatch Perimeter</span>
+                  <span className="text-black font-black text-sm">{radius.toFixed(1)} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="15"
+                  step="0.5"
+                  value={radius}
+                  onChange={(e) => setRadius(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-neutral-200 border-2 border-black appearance-none cursor-pointer accent-black"
+                />
+                <div className="flex justify-between font-tech text-[10px] text-neutral-500">
+                  <span>1.0 km (Hyper-dense)</span>
+                  <span>7.5 km (Standard)</span>
+                  <span>15.0 km (Max corridor)</span>
+                </div>
+              </div>
+
+              {/* Reach Forecast Matrix */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="p-3 border-2 border-black bg-neutral-50">
+                  <p className="font-tech text-[10px] text-neutral-500 uppercase font-bold">
+                    Est. Households
+                  </p>
+                  <p className="font-display font-black text-xl text-neutral-900 mt-0.5">
+                    ~{(estimatedHouseholds / 1000).toFixed(1)}k
+                  </p>
+                  <span className="text-[10px] font-tech text-neutral-600">Active app reach</span>
+                </div>
+
+                <div className="p-3 border-2 border-black bg-neutral-50">
+                  <p className="font-tech text-[10px] text-neutral-500 uppercase font-bold">
+                    Avg. Courier Sla
+                  </p>
+                  <p className="font-display font-black text-xl text-neutral-900 mt-0.5">
+                    {Math.round(8 + radius * 0.8)}-{Math.round(12 + radius * 1.2)} min
+                  </p>
+                  <span className="text-[10px] font-tech text-[#00E599] font-bold bg-black px-1">
+                    Guaranteed
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-4 border-t-2 border-black space-y-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-brutal-yellow w-full !h-12 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]"
+                >
+                  <span>{loading ? 'Saving Profile...' : 'Save & Proceed to Banking'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <p className="font-tech text-[11px] text-neutral-500 text-center uppercase">
+                  Step 1 of 2: KYC banking setup required next for instant settlements.
+                </p>
+              </div>
+            </div>
+          </div>
+        </form>
       </main>
+
+      <BrutalFooter />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, Order, Store } from '../../database/entities';
 import { OrderStatus, UserRole } from '../../common/enums';
+import { Order, Store, User } from '../../database/entities';
 
 @Injectable()
 export class AdminService {
@@ -18,9 +18,9 @@ export class AdminService {
       .createQueryBuilder('order')
       .select('SUM(order.total)', 'totalRevenue')
       .where('order.status = :status', { status: OrderStatus.DELIVERED })
-      .getRawOne();
-      
-    const totalRevenue = revenueResult?.totalRevenue || 0;
+      .getRawOne<{ totalRevenue: string | null }>();
+
+    const totalRevenue = revenueResult?.totalRevenue || '0';
 
     // Total Orders
     const totalOrders = await this.orderRepository.count();
@@ -30,8 +30,12 @@ export class AdminService {
 
     // Users breakdown
     const customersCount = await this.userRepository.count({ where: { role: UserRole.CUSTOMER } });
-    const shopkeepersCount = await this.userRepository.count({ where: { role: UserRole.SHOPKEEPER } });
-    const ridersCount = await this.userRepository.count({ where: { role: UserRole.DELIVERY_PARTNER } });
+    const shopkeepersCount = await this.userRepository.count({
+      where: { role: UserRole.SHOPKEEPER },
+    });
+    const ridersCount = await this.userRepository.count({
+      where: { role: UserRole.DELIVERY_PARTNER },
+    });
 
     // Store stats
     const totalStores = await this.storeRepository.count();

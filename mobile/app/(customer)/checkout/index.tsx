@@ -1,28 +1,74 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { api } from '../../src/lib/api';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const [deliveryTime, setDeliveryTime] = useState('asap');
+  const { promo } = useLocalSearchParams();
   const [instructions, setInstructions] = useState('');
-  const [cart, setCart] = useState<any>(null);
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [cart, setCart] = useState<Models.Cart | null>(null);
+  const [addresses, setAddresses] = useState<Models.Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'WALLET' | 'COD'>('ONLINE');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [promoCode, setPromoCode] = useState<string>(typeof promo === 'string' ? promo : '');
+  const [promoDiscount, setPromoDiscount] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [cartData, addressData] = await Promise.all([
-          api.cart.get(),
-          api.users.getAddresses()
+        const [cartData, addressData, walletData] = await Promise.all([
+          api.cart.get().catch(() => null),
+          api.users.getAddresses().catch(() => []),
+          api.wallet.get().catch(() => null),
         ]);
         setCart(cartData);
-        setAddresses(addressData || []);
+        const addrList = Array.isArray(addressData) ? addressData : [];
+        setAddresses(addrList);
+        if (addrList.length > 0) {
+          const def = addrList.find((a) => a.isDefault) || addrList[0];
+          setSelectedAddressId(def.id);
+        }
+        if (walletData?.balance !== undefined) {
+          setWalletBalance(Number(walletData.balance));
+        }
+
+        if (promo && cartData?.subtotal) {
+          try {
+            const promoRes = await api.promotions.validate(
+              promo.toString(),
+              Number(cartData.subtotal),
+            );
+            if (promoRes?.valid) {
+              setPromoDiscount(Number(promoRes.discount || 0));
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       } catch (e) {
         console.error('Failed to load checkout data', e);
       } finally {
@@ -30,178 +76,408 @@ export default function CheckoutScreen() {
       }
     };
     fetchData();
-  }, []);
+  }, [promo]);
 
   const handlePlaceOrder = async () => {
-    if (!cart?.storeId || addresses.length === 0) return;
+    if (!cart?.items || cart.items.length === 0) {
+      Alert.alert('Empty Cart', 'Your manifest has no items.');
+      return;
+    }
+    if (!selectedAddressId) {
+      Alert.alert('Coordinates Required', 'Please select or add a delivery address to proceed.');
+      return;
+    }
+
+    const orderTotal = Math.max(0, Number(cart.total ?? 0) - promoDiscount);
+    if (paymentMethod === 'WALLET' && walletBalance < orderTotal) {
+      Alert.alert(
+        'Insufficient Balance',
+        `Omni Wallet has ₹${walletBalance.toFixed(0)}, but order total is ₹${orderTotal.toFixed(0)}. Select Online or Cash on Delivery.`,
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const selectedAddress = addresses.find(a => a.isDefault) || addresses[0];
-      
       const order = await api.orders.create({
-        storeId: cart.storeId,
-        deliveryAddressId: selectedAddress.id,
-        items: cart.items.map((i: any) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          price: i.price,
-        })),
-        subtotal: cart.subtotal,
-        deliveryFee: cart.deliveryFee,
-        tax: cart.tax,
-        total: cart.total,
+        deliveryAddressId: selectedAddressId,
         deliveryInstructions: instructions,
-        paymentMethod: 'card'
+        paymentMethod: paymentMethod,
+        promotionCode: promoCode || undefined,
       });
-      
-      await api.cart.clear();
-      router.push(`/(customer)/order/${order.id}`);
+
+      const orderId = order.id;
+      if (orderId) {
+        router.replace(`/(customer)/order/${orderId}`);
+      } else {
+        router.replace('/(customer)/orders');
+      }
     } catch (e) {
       console.error('Failed to place order', e);
+      Alert.alert('Order Failed', getErrorMessage(e) || 'Could not place order. Please try again.');
       setSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color="#00e554" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: BrutalColors.bg,
+        }}
+      >
+        <ActivityIndicator size="large" color={BrutalColors.black} />
       </View>
     );
   }
 
-  const defaultAddress = addresses.find(a => a.isDefault) || addresses[0];
+  const selectedAddr = addresses.find((a) => a.id === selectedAddressId) || addresses[0];
+  const subtotal = Number(cart?.subtotal ?? 0);
+  const deliveryFee = Number(cart?.deliveryFee ?? (subtotal >= 199 ? 0 : 25));
+  const tax = Number(cart?.tax ?? 0);
+  const total = Number(cart?.total ?? subtotal + deliveryFee + tax);
+  const finalTotal = Math.max(0, total - promoDiscount);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {/* TopAppBar */}
-      <View className="w-full bg-surface shadow-sm z-40 flex-row justify-between items-center px-5 h-16">
-        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 rounded-full flex items-center justify-center -ml-2 active:bg-surface-variant">
-          <MaterialIcons name="arrow-back" size={24} color="#3b4b39" />
-        </TouchableOpacity>
-        <Text className="font-extrabold text-xl text-primary tracking-tighter">OmniDrop</Text>
-        <View className="w-10" />
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ DIRECT DISPATCH ROUTING · 12-MIN SLA" />
+      <BrutalHeader title="Order Checkout" subtitle="Delivery & Settlement" />
 
-      <ScrollView className="flex-1 px-5 pt-6 pb-[120px]" showsVerticalScrollIndicator={false}>
-        <View className="mb-6">
-          <Text className="text-3xl font-bold text-on-surface">Secure Checkout</Text>
-          <Text className="text-sm text-on-surface-variant mt-1">Almost there! Review your details.</Text>
-        </View>
-
-        <View className="flex-col gap-6">
-          {/* Delivery Address */}
-          <View className="bg-surface-container-lowest rounded-xl shadow-sm p-5 border border-surface-variant">
-            <View className="flex-row justify-between items-center mb-4">
-              <View className="flex-row items-center gap-2">
-                <MaterialIcons name="location-on" size={20} color="#006e24" />
-                <Text className="text-xl font-bold text-on-surface">Delivery Address</Text>
-              </View>
-              <Text className="text-sm font-bold text-primary uppercase tracking-wider">Edit</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 1. Destination Coordinates Card */}
+        <BrutalCard style={{ padding: 16, marginBottom: 16 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons
+                name="location-on"
+                size={18}
+                color={BrutalColors.black}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                1. Delivery Coordinates
+              </Text>
             </View>
-            <View className="flex-row bg-surface-container-low p-4 rounded-lg border border-surface-variant/50 relative overflow-hidden">
-              <View className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-              <View className="pl-2 flex-1">
-                <Text className="text-base font-bold text-on-surface">{defaultAddress ? defaultAddress.label : 'Add Address'}</Text>
-                <Text className="text-sm text-on-surface-variant mt-1">
-                  {defaultAddress ? `${defaultAddress.streetAddress}\n${defaultAddress.city}, ${defaultAddress.state} ${defaultAddress.zipCode}` : 'No address selected'}
+            <TouchableOpacity onPress={() => router.push('/(customer)/addresses')}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  textDecorationLine: 'underline',
+                  color: BrutalColors.black,
+                }}
+              >
+                Change →
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {selectedAddr ? (
+            <View
+              style={{
+                backgroundColor: BrutalColors.subtle,
+                borderWidth: 1.5,
+                borderColor: BrutalColors.black,
+                padding: 12,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                  }}
+                >
+                  {selectedAddr.label || 'Home'}
                 </Text>
+                <BrutalBadge label="PRIMARY" variant="green" />
               </View>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#222' }}>
+                {selectedAddr.addressLine1}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                {selectedAddr.city}, {selectedAddr.pincode || 'Bengaluru'}
+              </Text>
             </View>
-            <TextInput 
+          ) : (
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/addresses')}
+              style={{
+                borderWidth: 2,
+                borderStyle: 'dashed',
+                borderColor: BrutalColors.black,
+                padding: 14,
+                alignItems: 'center',
+                backgroundColor: '#FFFFFF',
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                + Add Delivery Coordinates
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Delivery Note */}
+          <View style={{ marginTop: 12 }}>
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: '#666',
+                marginBottom: 4,
+              }}
+            >
+              Rider Gate Note (Optional):
+            </Text>
+            <TextInput
               value={instructions}
               onChangeText={setInstructions}
-              placeholder="Add delivery instructions (e.g. Leave at door)"
-              className="mt-4 w-full bg-surface border border-surface-variant rounded-lg px-4 py-3 text-sm"
+              placeholder="e.g. Leave package with front desk / dial intercom 402"
+              placeholderTextColor="#888"
+              style={{
+                borderWidth: 1.5,
+                borderColor: BrutalColors.black,
+                backgroundColor: '#FFFFFF',
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                fontSize: 12,
+                color: BrutalColors.black,
+              }}
             />
           </View>
+        </BrutalCard>
 
-          {/* Delivery Time */}
-          <View className="bg-surface-container-lowest rounded-xl shadow-sm p-5 border border-surface-variant">
-            <View className="flex-row items-center gap-2 mb-4">
-              <MaterialIcons name="schedule" size={20} color="#006e24" />
-              <Text className="text-xl font-bold text-on-surface">Delivery Time</Text>
-            </View>
-            <View className="flex-row gap-4">
-              <TouchableOpacity onPress={() => setDeliveryTime('asap')} className={`flex-1 border-2 rounded-lg p-4 items-center justify-center h-24 ${deliveryTime === 'asap' ? 'border-primary bg-primary-container/10' : 'border-surface-variant hover:bg-surface-container-low'}`}>
-                <View className="bg-primary-container px-2 py-0.5 rounded-full mb-2">
-                  <Text className="text-[10px] font-bold text-primary uppercase tracking-wider">Fastest</Text>
-                </View>
-                <Text className="font-bold text-on-surface">15 - 25 Min</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => setDeliveryTime('schedule')} className={`flex-1 border-2 rounded-lg p-4 items-center justify-center h-24 ${deliveryTime === 'schedule' ? 'border-primary bg-primary-container/10' : 'border-surface-variant hover:bg-surface-container-low'}`}>
-                <MaterialIcons name="event" size={24} color="#3b4b39" />
-                <Text className="text-sm text-on-surface-variant mt-2">Schedule for Later</Text>
-              </TouchableOpacity>
-            </View>
+        {/* 2. Payment Protocol Card */}
+        <BrutalCard style={{ padding: 16, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <MaterialIcons
+              name="payment"
+              size={18}
+              color={BrutalColors.black}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+              }}
+            >
+              2. Settlement Method
+            </Text>
           </View>
 
-          {/* Payment Method */}
-          <View className="bg-surface-container-lowest rounded-xl shadow-sm p-5 border border-surface-variant">
-            <View className="flex-row justify-between items-center mb-4">
-              <View className="flex-row items-center gap-2">
-                <MaterialIcons name="credit-card" size={20} color="#006e24" />
-                <Text className="text-xl font-bold text-on-surface">Payment</Text>
-              </View>
-              <Text className="text-sm font-bold text-primary uppercase tracking-wider">Change</Text>
-            </View>
-            <View className="flex-row items-center gap-4 p-4 rounded-lg border border-surface-variant bg-surface">
-              <View className="w-12 h-8 bg-[#141a32] rounded items-center justify-center">
-                <Text className="text-white font-bold text-xs">VISA</Text>
-              </View>
-              <Text className="flex-1 font-bold text-on-surface">•••• •••• •••• 4242</Text>
-              <MaterialIcons name="check-circle" size={24} color="#006e24" />
-            </View>
-          </View>
-
-          {/* Order Summary */}
-          <View className="bg-surface-container-lowest rounded-xl shadow-sm p-5 border border-surface-variant mb-6">
-            <Text className="text-xl font-bold text-on-surface mb-4 border-b border-surface-variant pb-2">Order Summary</Text>
-            
-            <View className="flex-col gap-2 mb-4">
-              {cart?.items.map((item: any) => (
-                <View key={item.id} className="flex-row justify-between items-center">
-                  <View className="flex-row items-center gap-2">
-                    <View className="bg-surface-container-high px-2 py-1 rounded"><Text className="font-bold text-xs">{item.quantity}x</Text></View>
-                    <Text className="text-sm text-on-surface" numberOfLines={1}>{item.product?.name}</Text>
+          <View style={{ gap: 8 }}>
+            {[
+              {
+                id: 'ONLINE',
+                title: '⚡ Instant Online',
+                desc: 'UPI, Debit/Credit Card, NetBanking (Encrypted)',
+              },
+              {
+                id: 'WALLET',
+                title: `💳 Omni Wallet (₹${walletBalance.toFixed(0)})`,
+                desc: 'One-tap instant deduction with zero bank redirect',
+              },
+              {
+                id: 'COD',
+                title: '💵 Cash On Delivery',
+                desc: 'Doorstep cash or UPI QR scan on arrival',
+              },
+            ].map((method) => {
+              const isSelected = paymentMethod === method.id;
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  onPress={() => setPaymentMethod(method.id as typeof paymentMethod)}
+                  activeOpacity={0.8}
+                  style={[
+                    {
+                      borderWidth: 2,
+                      borderColor: BrutalColors.black,
+                      backgroundColor: isSelected ? BrutalColors.yellow : BrutalColors.white,
+                      padding: 12,
+                    },
+                    isSelected ? BrutalShadow.sm : {},
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {method.title}
+                    </Text>
+                    {isSelected && (
+                      <MaterialIcons name="check-circle" size={18} color={BrutalColors.black} />
+                    )}
                   </View>
-                  <Text className="text-sm font-bold text-on-surface">${(item.price * item.quantity).toFixed(2)}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View className="border-t border-surface-variant border-dashed pt-4 flex-col gap-2 mb-4">
-              <View className="flex-row justify-between"><Text className="text-sm text-on-surface-variant">Subtotal</Text><Text className="text-sm text-on-surface-variant">${cart?.subtotal.toFixed(2)}</Text></View>
-              <View className="flex-row justify-between"><Text className="text-sm text-on-surface-variant">Delivery Fee</Text><Text className="text-sm text-on-surface-variant">${cart?.deliveryFee.toFixed(2)}</Text></View>
-              <View className="flex-row justify-between"><Text className="text-sm text-on-surface-variant">Taxes</Text><Text className="text-sm text-on-surface-variant">${cart?.tax.toFixed(2)}</Text></View>
-            </View>
-
-            <View className="border-t border-surface-variant pt-4 flex-row justify-between items-center">
-              <Text className="text-xl font-bold text-on-surface">Total</Text>
-              <Text className="text-2xl font-extrabold text-primary">${cart?.total.toFixed(2)}</Text>
-            </View>
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#444', marginTop: 2 }}>
+                    {method.desc}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
-      </ScrollView>
+        </BrutalCard>
 
-      {/* Sticky Bottom Bar */}
-      <View className="absolute bottom-0 w-full z-50 bg-surface-container-lowest border-t border-surface-variant shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 py-4 pb-8">
-        <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-sm text-on-surface-variant">Total</Text>
-          <Text className="text-xl font-bold text-primary">${cart?.total.toFixed(2)}</Text>
-        </View>
-        <TouchableOpacity onPress={handlePlaceOrder} disabled={submitting || !cart || addresses.length === 0} className={`w-full bg-primary-container py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm ${(submitting || !cart || addresses.length === 0) ? 'opacity-70' : 'active:opacity-90'}`}>
-          {submitting ? (
-            <ActivityIndicator color="#002106" />
-          ) : (
-            <>
-              <Text className="text-on-primary-container text-lg font-bold">Place Order</Text>
-              <MaterialIcons name="bolt" size={24} color="#002106" />
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* 3. Order Final Ledger */}
+        <BrutalCard style={{ padding: 16, marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+              marginBottom: 10,
+            }}
+          >
+            3. Final Order Ledger
+          </Text>
+
+          <View
+            style={{
+              gap: 6,
+              borderBottomWidth: 2,
+              borderBottomColor: BrutalColors.black,
+              paddingBottom: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>
+                Manifest Items ({cart?.items?.length || 0})
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: BrutalColors.black }}>
+                ₹{subtotal.toFixed(0)}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>
+                Expedited Delivery Corridor
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '900',
+                  color: deliveryFee === 0 ? '#008855' : BrutalColors.black,
+                }}
+              >
+                {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(0)}`}
+              </Text>
+            </View>
+
+            {tax > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>
+                  Taxes & Regulatory Fee
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: BrutalColors.black }}>
+                  ₹{tax.toFixed(0)}
+                </Text>
+              </View>
+            )}
+
+            {promoDiscount > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#008855' }}>
+                  Voucher Discount ({promoCode})
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#008855' }}>
+                  -₹{promoDiscount.toFixed(0)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 10,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+              }}
+            >
+              Gross Authorization
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '900', color: BrutalColors.black }}>
+              ₹{finalTotal.toFixed(0)}
+            </Text>
+          </View>
+
+          <BrutalButton
+            title={
+              submitting
+                ? 'AUTHORIZING DISPATCH...'
+                : `AUTHORIZE ₹${finalTotal.toFixed(0)} DISPATCH →`
+            }
+            onPress={handlePlaceOrder}
+            loading={submitting}
+            variant="yellow"
+            size="lg"
+            fullWidth
+            style={{ marginTop: 16 }}
+          />
+        </BrutalCard>
+      </ScrollView>
     </SafeAreaView>
   );
 }

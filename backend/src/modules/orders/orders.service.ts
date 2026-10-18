@@ -1,36 +1,85 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { Order } from '../../database/entities/order.entity';
-import { OrderItem } from '../../database/entities/order-item.entity';
-import { CartItem } from '../../database/entities/cart-item.entity';
+import { DataSource, FindOptionsWhere, LessThan, Repository } from 'typeorm';
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  UserRole,
+  WalletTransactionType,
+} from '../../common/enums';
+import { getErrorMessage } from '../../common/errors';
 import { Inventory } from '../../database/entities/inventory.entity';
+import { Order } from '../../database/entities/order.entity';
 import { Payment } from '../../database/entities/payment.entity';
-import { DeliveryTask } from '../../database/entities/delivery-task.entity';
 import { Store } from '../../database/entities/store.entity';
 import { User } from '../../database/entities/user.entity';
-import { OrderStatus, PaymentMethod, PaymentStatus, DeliveryStatus } from '../../common/enums';
+import { WalletTransaction } from '../../database/entities/wallet-transaction.entity';
+import { Wallet } from '../../database/entities/wallet.entity';
 import { WsGateway } from '../../websockets/ws.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import type { CheckoutInput } from './checkout.service';
+import { CheckoutService } from './checkout.service';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
     @InjectRepository(Order) private orderRepository: Repository<Order>,
-    @InjectRepository(OrderItem) private orderItemRepository: Repository<OrderItem>,
-    @InjectRepository(CartItem) private cartItemRepository: Repository<CartItem>,
     @InjectRepository(Inventory) private inventoryRepository: Repository<Inventory>,
     @InjectRepository(Store) private storeRepository: Repository<Store>,
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectQueue('orders') private ordersQueue: Queue,
     private wsGateway: WsGateway,
     private notificationsService: NotificationsService,
+    private checkoutService: CheckoutService,
     private dataSource: DataSource,
   ) {}
+
+  private sweepTimer?: ReturnType<typeof setInterval>;
+  private readonly acceptanceTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  onModuleDestroy() {
+    clearInterval(this.sweepTimer);
+    for (const timer of this.acceptanceTimers) clearTimeout(timer);
+    this.acceptanceTimers.clear();
+  }
+
+  onModuleInit() {
+    // Initial sweep to auto-cancel any unaccepted orders across server restarts
+    this.sweepExpiredPendingOrders().catch((err) => {
+      this.logger.error(`Initial pending order sweep failed: ${getErrorMessage(err)}`);
+    });
+
+    // Persistent recurring sweep every 60 seconds
+    this.sweepTimer = setInterval(() => {
+      this.sweepExpiredPendingOrders().catch((err) => {
+        this.logger.error(`Recurring pending order sweep failed: ${getErrorMessage(err)}`);
+      });
+    }, 60000);
+  }
+
+  async sweepExpiredPendingOrders() {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const expiredOrders = await this.orderRepository.find({
+      where: {
+        status: OrderStatus.PENDING,
+        createdAt: LessThan(tenMinutesAgo),
+      },
+      relations: { items: true },
+    });
+
+    for (const order of expiredOrders) {
+      await this.handleAcceptanceTimeout(order.id);
+    }
+  }
 
   async findOne(id: string) {
     return this.orderRepository.findOne({
@@ -39,145 +88,99 @@ export class OrdersService {
     });
   }
 
-  async checkout(userId: string, data: {
-    deliveryAddress: string;
-    deliveryLat: number;
-    deliveryLng: number;
-    deliveryInstructions?: string;
-    paymentMethod: PaymentMethod;
-    tip?: number;
-    promotionCode?: string;
-  }) {
-    // Get cart items
-    const cartItems = await this.cartItemRepository.find({ where: { userId } });
-    if (cartItems.length === 0) throw new BadRequestException('Cart is empty');
-
-    const storeId = cartItems[0].storeId;
-    const store = await this.storeRepository.findOne({ where: { id: storeId } });
-    if (!store) throw new BadRequestException('Store not found');
-
-    // Use a transaction for atomicity
-    const result = await this.dataSource.transaction(async (manager) => {
-      let subtotal = 0;
-      const orderItems: Partial<OrderItem>[] = [];
-
-      // Validate stock and build order items
-      for (const cartItem of cartItems) {
-        const inventory = await manager.findOne(Inventory, {
-          where: { storeId: cartItem.storeId, productId: cartItem.productId },
-          relations: { product: true },
+  async checkout(userId: string, data: CheckoutInput) {
+    const order = await this.checkoutService.checkout(userId, data);
+    const timer = setTimeout(
+      () => {
+        this.acceptanceTimers.delete(timer);
+        void this.handleAcceptanceTimeout(order.id).catch((error: Error) => {
+          this.logger.error('Order acceptance timeout failed', error.stack);
         });
-
-        if (!inventory || inventory.stock < cartItem.quantity) {
-          throw new BadRequestException(
-            `Insufficient stock for ${inventory?.product?.name || 'product'}`,
-          );
-        }
-
-        const unitPrice = inventory.priceOverride || inventory.product.sellingPrice;
-        subtotal += unitPrice * cartItem.quantity;
-
-        orderItems.push({
-          productId: cartItem.productId,
-          name: inventory.product.name,
-          quantity: cartItem.quantity,
-          unitPrice,
-        });
-
-        // Decrement stock
-        inventory.stock -= cartItem.quantity;
-        await manager.save(inventory);
-      }
-
-      const deliveryFee = subtotal > 500 ? 0 : 30;
-      const tip = data.tip || 0;
-      const discount = 0; // TODO: Apply promotion
-      const total = subtotal + deliveryFee + tip - discount;
-
-      // Create order
-      const order = manager.create(Order, {
-        userId,
-        storeId,
-        status: OrderStatus.PENDING,
-        subtotal,
-        deliveryFee,
-        discount,
-        tip,
-        total,
-        deliveryAddress: data.deliveryAddress,
-        deliveryLat: data.deliveryLat,
-        deliveryLng: data.deliveryLng,
-        deliveryInstructions: data.deliveryInstructions,
-        paymentMethod: data.paymentMethod,
-        promotionCode: data.promotionCode,
-      });
-
-      const savedOrder = await manager.save(order);
-
-      // Create order items
-      for (const item of orderItems) {
-        const orderItem = manager.create(OrderItem, {
-          ...item,
-          orderId: savedOrder.id,
-        });
-        await manager.save(orderItem);
-      }
-
-      // Create payment record
-      const payment = manager.create(Payment, {
-        orderId: savedOrder.id,
-        amount: total,
-        status: data.paymentMethod === PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING,
-        method: data.paymentMethod,
-      });
-      await manager.save(payment);
-
-      // Create delivery task
-      const deliveryTask = manager.create(DeliveryTask, {
-        orderId: savedOrder.id,
-        status: DeliveryStatus.PENDING,
-        pickupLat: store.lat,
-        pickupLng: store.lng,
-        dropLat: data.deliveryLat,
-        dropLng: data.deliveryLng,
-        codAmount: data.paymentMethod === PaymentMethod.COD ? total : 0,
-      });
-      await manager.save(deliveryTask);
-
-      // Clear cart
-      await manager.delete(CartItem, { userId });
-
-      this.logger.log(`Order created: ${savedOrder.id} for user ${userId}`);
-
-      return {
-        ...savedOrder,
-        items: orderItems,
-        payment,
-        deliveryTask,
-      };
-    });
-    
-    // Add job to check acceptance after 10 minutes (600000 ms)
-    await this.ordersQueue.add(
-      'check-acceptance-timeout',
-      { orderId: result.id },
-      { delay: 600000 }
+      },
+      10 * 60 * 1000,
     );
+    this.acceptanceTimers.add(timer);
+    return order;
+  }
 
-    // Notify store
-    this.wsGateway.emitNewOrder(storeId, result);
-    
-    const owner = await this.userRepository.findOne({ where: { id: store.ownerId } });
-    if (owner?.fcmToken) {
-      this.notificationsService.sendPushNotification(
-        owner.fcmToken,
-        'New Order Received! 📦',
-        `Order #${result.id.slice(-6)} for ₹${result.total} from ${store.name}`,
-        { orderId: result.id, type: 'NEW_ORDER' }
-      );
+  async refundOrderIfApplicable(order: Order, reason = 'Order Cancelled') {
+    if (order.paymentMethod === PaymentMethod.WALLET && Number(order.total) > 0) {
+      try {
+        await this.dataSource.transaction(async (manager) => {
+          const wallet = await manager.findOne(Wallet, { where: { userId: order.userId } });
+          if (wallet) {
+            const currentBalance = parseFloat(Number(wallet.balance).toString());
+            const refundAmount = parseFloat(Number(order.total).toString());
+            wallet.balance = parseFloat((currentBalance + refundAmount).toFixed(2));
+            await manager.save(wallet);
+
+            const refundTx = manager.create(WalletTransaction, {
+              walletId: wallet.id,
+              amount: refundAmount,
+              type: WalletTransactionType.CREDIT,
+              referenceId: `refund_${order.id}`,
+              description: `Refund: ${reason} (#${order.id.slice(-6)})`,
+            });
+            await manager.save(refundTx);
+          }
+        });
+      } catch (err) {
+        this.logger.error(`Failed to refund wallet for order ${order.id}: ${getErrorMessage(err)}`);
+      }
     }
 
-    return result;
+    try {
+      const paymentRepo = this.dataSource.getRepository(Payment);
+      const payment = await paymentRepo.findOne({ where: { orderId: order.id } });
+      if (payment) {
+        payment.status = PaymentStatus.REFUNDED;
+        await paymentRepo.save(payment);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not update payment status on refund for order ${order.id}: ${getErrorMessage(err)}`,
+      );
+    }
+  }
+
+  async markPaymentCompleted(orderId: string, stripePaymentId?: string) {
+    const paymentRepo = this.dataSource.getRepository(Payment);
+    const payment = await paymentRepo.findOne({ where: { orderId } });
+    if (payment) {
+      payment.status = PaymentStatus.COMPLETED;
+      if (stripePaymentId) {
+        payment.stripePaymentId = stripePaymentId;
+      }
+      await paymentRepo.save(payment);
+    }
+  }
+
+  async handleAcceptanceTimeout(orderId: string) {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: { items: true },
+    });
+
+    if (!order) return;
+
+    // If order is still PENDING after 10 minutes, auto-cancel it
+    if (order.status === OrderStatus.PENDING) {
+      this.logger.warn(`Order ${orderId} auto-cancelled due to shopkeeper timeout`);
+
+      order.status = OrderStatus.CANCELLED;
+      await this.orderRepository.save(order);
+
+      await this.restoreStock(order);
+
+      // Process wallet / payment refund if applicable
+      await this.refundOrderIfApplicable(order, 'Store Acceptance Timeout');
+
+      // Notify users via WebSocket
+      this.wsGateway.emitOrderStatusUpdate(orderId, {
+        status: OrderStatus.CANCELLED,
+        reason: 'Store took too long to accept the order.',
+      });
+    }
   }
 
   async findByUser(userId: string, page = 1, pageSize = 10) {
@@ -193,20 +196,33 @@ export class OrdersService {
   }
 
   async findById(id: string, userId?: string) {
-    const where: any = { id };
+    const where: FindOptionsWhere<Order> = { id };
     if (userId) where.userId = userId;
 
     const order = await this.orderRepository.findOne({
       where,
-      relations: { items: { product: true }, store: true, payment: true, deliveryTask: { rider: true } },
+      relations: {
+        items: { product: true },
+        store: true,
+        payment: true,
+        deliveryTask: { rider: true },
+      },
     });
 
     if (!order) throw new NotFoundException('Order not found');
     return order;
   }
 
-  async findByStore(storeId: string, status?: OrderStatus, page = 1, pageSize = 20) {
-    const where: any = { storeId };
+  async findByStore(storeId: string, user?: User, status?: OrderStatus, page = 1, pageSize = 20) {
+    if (user && user.role !== UserRole.ADMIN) {
+      const store = await this.storeRepository.findOne({ where: { id: storeId } });
+      if (!store) throw new NotFoundException('Store not found');
+      if (store.ownerId !== user.id) {
+        throw new ForbiddenException('You do not have permission to view orders for this store');
+      }
+    }
+
+    const where: FindOptionsWhere<Order> = { storeId };
     if (status) where.status = status;
 
     const [items, total] = await this.orderRepository.findAndCount({
@@ -220,9 +236,40 @@ export class OrdersService {
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
-  async updateStatus(id: string, status: OrderStatus, updatedBy: string) {
-    const order = await this.orderRepository.findOne({ where: { id } });
+  async updateStatus(id: string, status: OrderStatus, updatedBy: string, user?: User) {
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      relations: { store: true, deliveryTask: true },
+    });
     if (!order) throw new NotFoundException('Order not found');
+
+    // Verify actor authorization if initiated by a user
+    if (user && user.role !== UserRole.ADMIN && updatedBy !== 'system') {
+      const isStoreOwner = order.store?.ownerId === user.id;
+      const isAssignedRider = order.deliveryTask?.riderId === user.id;
+      const merchantTransitions = [
+        OrderStatus.CONFIRMED,
+        OrderStatus.PREPARING,
+        OrderStatus.READY_FOR_PICKUP,
+        OrderStatus.CANCELLED,
+      ];
+      const riderTransitions = [
+        OrderStatus.PICKED_UP,
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+      ];
+
+      if (merchantTransitions.includes(status) && !isStoreOwner) {
+        throw new ForbiddenException(
+          'Only the store owner can perform preparation state updates on this order',
+        );
+      }
+      if (riderTransitions.includes(status) && !isAssignedRider) {
+        throw new ForbiddenException(
+          'Only the assigned delivery partner can update delivery progress',
+        );
+      }
+    }
 
     // Validate status transitions
     const validTransitions: Record<OrderStatus, OrderStatus[]> = {
@@ -238,30 +285,29 @@ export class OrdersService {
     };
 
     if (!validTransitions[order.status]?.includes(status)) {
-      throw new BadRequestException(
-        `Cannot transition from ${order.status} to ${status}`,
-      );
+      throw new BadRequestException(`Cannot transition from ${order.status} to ${status}`);
     }
 
     order.status = status;
     await this.orderRepository.save(order);
 
-    this.logger.log(`Order ${id} status updated to ${status} by ${updatedBy}`);
-    
     this.wsGateway.emitOrderStatusUpdate(id, { status });
-    
+
     if (status === OrderStatus.READY_FOR_PICKUP) {
       this.wsGateway.emitDeliveryRequest({ orderId: id, storeId: order.storeId });
     }
 
     // Notify customer
-    const orderWithUser = await this.orderRepository.findOne({ where: { id }, relations: { user: true } });
+    const orderWithUser = await this.orderRepository.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (orderWithUser?.user?.fcmToken) {
-      this.notificationsService.sendPushNotification(
+      void this.notificationsService.sendPushNotification(
         orderWithUser.user.fcmToken,
         'Order Update 🔔',
         `Your order #${id.slice(-6)} is now ${status.replace(/_/g, ' ')}`,
-        { orderId: id, type: 'ORDER_UPDATE', status }
+        { orderId: id, type: 'ORDER_UPDATE', status },
       );
     }
 
@@ -280,7 +326,24 @@ export class OrdersService {
       throw new BadRequestException('Order cannot be cancelled at this stage');
     }
 
-    // Restore stock
+    await this.restoreStock(order);
+
+    order.status = OrderStatus.CANCELLED;
+    await this.orderRepository.save(order);
+
+    // Process wallet / payment refund if applicable
+    await this.refundOrderIfApplicable(order, 'User Cancelled');
+
+    // Notify rooms via WebSocket
+    this.wsGateway.emitOrderStatusUpdate(id, {
+      status: OrderStatus.CANCELLED,
+      reason: 'Cancelled by customer',
+    });
+
+    return order;
+  }
+
+  private async restoreStock(order: Order) {
     for (const item of order.items) {
       const inventory = await this.inventoryRepository.findOne({
         where: { storeId: order.storeId, productId: item.productId },
@@ -290,16 +353,11 @@ export class OrdersService {
         await this.inventoryRepository.save(inventory);
       }
     }
-
-    order.status = OrderStatus.CANCELLED;
-    await this.orderRepository.save(order);
-
-    return order;
   }
 
   // Admin methods
   async findAll(page = 1, pageSize = 20, status?: OrderStatus) {
-    const where: any = {};
+    const where: FindOptionsWhere<Order> = {};
     if (status) where.status = status;
 
     const [items, total] = await this.orderRepository.findAndCount({
@@ -314,20 +372,24 @@ export class OrdersService {
   }
 
   async getStats() {
-    const total = await this.orderRepository.count();
-    const pending = await this.orderRepository.count({ where: { status: OrderStatus.PENDING } });
-    const delivered = await this.orderRepository.count({ where: { status: OrderStatus.DELIVERED } });
-    const cancelled = await this.orderRepository.count({ where: { status: OrderStatus.CANCELLED } });
+    const [total, pending, delivered, cancelled, inTransit] = await Promise.all([
+      this.orderRepository.count(),
+      this.orderRepository.count({ where: { status: OrderStatus.PENDING } }),
+      this.orderRepository.count({ where: { status: OrderStatus.DELIVERED } }),
+      this.orderRepository.count({ where: { status: OrderStatus.CANCELLED } }),
+      this.orderRepository.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
+    ]);
 
     const revenue = await this.orderRepository
       .createQueryBuilder('order')
       .select('SUM(order.total)', 'total')
       .where('order.status = :status', { status: OrderStatus.DELIVERED })
-      .getRawOne();
+      .getRawOne<{ total: string | null }>();
 
     return {
       total,
       pending,
+      inTransit,
       delivered,
       cancelled,
       revenue: parseFloat(revenue?.total || '0'),

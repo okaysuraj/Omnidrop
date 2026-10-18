@@ -1,56 +1,27 @@
-# Welcome to your Expo app 👋
+# Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo Router and NativeWind provide the customer, merchant and courier app. Installed Expo and React Native versions are pinned in package-lock.json.
 
-## Get started
+## Run
 
-1. Install dependencies
+    npm ci
+    # Copy .env.example to .env and configure Firebase and the API URL.
+    npm start
 
-   ```bash
-   npm install
-   ```
+Use npm run android, npm run ios or npm run web for a specific target. An iOS simulator requires macOS. A physical device must be able to reach the backend over your network.
 
-2. Start the app
+## Code map
 
-   ```bash
-   npx expo start
-   ```
+- app/(auth): login, registration and password reset.
+- app/(customer), app/(merchant), app/(delivery): role-specific screens and layouts.
+- src/features: dashboard state, actions and styles.
+- src/components/brutal-ui: reusable UI primitives; src/constants/theme.ts: colors and shadows.
+- src/lib/api.ts: authenticated requests and typed API methods.
+- src/providers: authentication and foreground socket lifecycle.
+- src/lib/location-task.ts: native background delivery updates, registered by the root layout.
+- src/lib/push-notifications.ts: push registration on supported native devices. Remote push on Android requires a development build.
+- src/types: domain models, request contracts and event payloads.
 
-In the output, you'll find options to open the app in a
+Use @/ imports for files under src. Keep network and business state in feature hooks when a screen grows. The API unwraps successful responses; order and product lists expose items.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Run npm run typecheck before committing. Expo regenerates .expo and expo-env.d.ts when started. Keep native signing files and credentials out of version control.

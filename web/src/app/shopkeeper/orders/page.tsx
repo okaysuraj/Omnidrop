@@ -1,407 +1,487 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import { BrutalFooter } from '@/components/shared/brutal-footer';
+import { BrutalNav } from '@/components/shared/brutal-nav';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import { useAuth } from '@/providers/auth-provider';
+import type * as Models from '@/types';
+import {
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Package,
+  Printer,
+  Receipt,
+  RefreshCw,
+  ShoppingBag,
+  Truck,
+} from 'lucide-react';
 import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+
+async function fetchStoreOrders() {
+  const stores = await api.stores.myStores();
+  const store = stores[0] || null;
+  const orders = store ? (await api.orders.byStore(store.id)).items : [];
+  return { store, orders };
+}
 
 export default function OrderOperationsScreen() {
-  const [showRiderModal, setShowRiderModal] = useState(false);
+  const { user } = useAuth();
+  const [store, setStore] = useState<Models.Store | null>(null);
+  const [orders, setOrders] = useState<Models.Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Models.Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  const loadOrders = useCallback(
+    () =>
+      fetchStoreOrders()
+        .then(({ store, orders }) => {
+          setStore(store);
+          setOrders(orders);
+          setSelectedOrder((previous) => previous || orders[0] || null);
+        })
+        .catch((error) => console.error('Failed to load store orders:', error))
+        .finally(() => setLoading(false)),
+    [],
+  );
+
+  useEffect(() => {
+    if (user) void loadOrders();
+  }, [user, loadOrders]);
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    setIsUpdating(true);
+    setFeedbackMsg(null);
+    try {
+      const updatedOrder = await api.orders.updateStatus(orderId, newStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: updatedOrder.status } : o)),
+      );
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, status: updatedOrder.status } : null));
+      }
+      setFeedbackMsg(`Order #${orderId.slice(0, 8)} status marked as ${newStatus}`);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    } catch (err) {
+      alert(getErrorMessage(err) || 'Failed to update order status');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const filteredOrders = orders.filter((o) => {
+    if (statusFilter === 'ALL') return true;
+    return o.status === statusFilter;
+  });
+
+  const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+  const preparingCount = orders.filter(
+    (o) => o.status === 'PREPARING' || o.status === 'READY_FOR_PICKUP',
+  ).length;
+  const completedCount = orders.filter((o) => o.status === 'DELIVERED').length;
 
   return (
-    <div className="bg-[#131313] text-[#e5e2e1] min-h-screen flex flex-col font-sans" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-      
-      {/* Top Navigation */}
-      <header className="h-16 flex justify-between items-center px-6 bg-[#131313] border-b border-[#3b4b39] z-40 sticky top-0">
-        <div className="flex items-center gap-4 flex-1">
-          <Link href="/shopkeeper/dashboard" className="mr-4">
-            <h1 className="text-xl font-bold text-[#6dff7f]">OmniDrop</h1>
-            <p className="text-[#c8c6c5] uppercase tracking-widest text-[10px]">Merchant Portal</p>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+      <BrutalNav />
+
+      <main className="container-brutal py-8 sm:py-12 space-y-8">
+        {/* Header Title & Subnavigation */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
+              {'// MERCHANT OPERATIONS ·'}
+              {store?.name || 'ORDER QUEUE'}
+            </div>
+            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+              Fulfillment & Packing Station
+            </h1>
+            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+              Live customer orders queued for pack-and-dispatch. Average target prep time: &lt;4.5
+              mins.
+            </p>
+          </div>
+
+          <button
+            onClick={loadOrders}
+            className="btn-brutal-white !h-10 !py-0 !px-4 text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Sync Live Queue</span>
+          </button>
+        </div>
+
+        {/* Portal Tabs Bar */}
+        <div className="flex flex-wrap gap-2 font-tech text-xs uppercase font-bold">
+          <Link
+            href="/shopkeeper/dashboard"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            📦 Shelf Inventory
           </Link>
-          <div className="relative w-full max-w-md hidden md:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#b9ccb5] text-sm">search</span>
-            <input className="w-full bg-[#0e0e0e] border border-[#3b4b39] rounded-lg pl-10 pr-4 py-1.5 text-sm focus:ring-1 focus:ring-[#00e554] outline-none text-[#e5e2e1]" placeholder="Search orders, riders, or tracking IDs..." type="text" />
+          <Link
+            href="/shopkeeper/orders"
+            className="px-4 py-2 border-2 border-black bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]"
+          >
+            📋 Fulfill Orders ({orders.length})
+          </Link>
+          <Link
+            href="/shopkeeper/profile-setup"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            ⚙️ Hub Profile
+          </Link>
+          <Link
+            href="/shopkeeper/financial-setup"
+            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+          >
+            💳 Banking & Payouts
+          </Link>
+        </div>
+
+        {/* Status Alert Toast */}
+        {feedbackMsg && (
+          <div className="p-3 bg-[#00E599] border-2 border-black font-tech text-xs font-bold text-black shadow-[3px_3px_0px_#000] flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-black shrink-0" />
+            <span>{feedbackMsg}</span>
+          </div>
+        )}
+
+        {/* 4 Metric Tiles */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="card-brutal p-4">
+            <p className="font-tech text-xs text-neutral-500 uppercase font-bold">Total Orders</p>
+            <p className="font-display font-black text-2xl sm:text-3xl text-neutral-900 mt-1">
+              {orders.length}
+            </p>
+            <span className="text-[10px] font-tech text-neutral-500">All-time store volume</span>
+          </div>
+
+          <div className="card-brutal p-4 bg-[#FF4800]/10 border-black">
+            <p className="font-tech text-xs text-[#FF4800] uppercase font-bold flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" /> Pending Accept
+            </p>
+            <p className="font-display font-black text-2xl sm:text-3xl text-[#FF4800] mt-1">
+              {pendingCount}
+            </p>
+            <span className="text-[10px] font-tech text-[#FF4800] font-bold">
+              Requires instant action
+            </span>
+          </div>
+
+          <div className="card-brutal p-4 bg-[#FFE600]/20 border-black">
+            <p className="font-tech text-xs text-neutral-800 uppercase font-bold flex items-center gap-1">
+              <Package className="w-3.5 h-3.5" /> In Pack / Pickup
+            </p>
+            <p className="font-display font-black text-2xl sm:text-3xl text-neutral-900 mt-1">
+              {preparingCount}
+            </p>
+            <span className="text-[10px] font-tech text-neutral-700">Awaiting courier dock</span>
+          </div>
+
+          <div className="card-brutal p-4 bg-[#00E599]/15 border-black">
+            <p className="font-tech text-xs text-emerald-800 uppercase font-bold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Dispatched / Done
+            </p>
+            <p className="font-display font-black text-2xl sm:text-3xl text-emerald-900 mt-1">
+              {completedCount}
+            </p>
+            <span className="text-[10px] font-tech text-emerald-700 font-bold">
+              Successfully handed
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex gap-4 text-[#b9ccb5]">
-            <button className="hover:text-[#00e554] transition-colors"><span className="material-symbols-outlined">notifications</span></button>
-            <button className="hover:text-[#00e554] transition-colors"><span className="material-symbols-outlined">help</span></button>
-          </div>
-          <div className="h-8 w-8 rounded-full overflow-hidden border border-[#3b4b39]">
-            <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150" alt="Admin" />
-          </div>
-        </div>
-      </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        
-        {/* Sidebar Navigation */}
-        <aside className="w-16 md:w-64 bg-[#1b1b1c] shadow-md flex flex-col py-6 border-r border-[#3b4b39] z-30 shrink-0">
-          <nav className="flex-1 space-y-1">
-            <Link href="/shopkeeper/dashboard" className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 text-[#c8c6c5] hover:text-[#00e554] mx-2 hover:bg-[#474746] rounded-lg transition-colors">
-              <span className="material-symbols-outlined">dashboard</span>
-              <span className="text-sm font-medium hidden md:block">Dashboard</span>
-            </Link>
-            <Link href="/shopkeeper/dashboard" className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 text-[#c8c6c5] hover:text-[#00e554] mx-2 hover:bg-[#474746] rounded-lg transition-colors">
-              <span className="material-symbols-outlined">inventory_2</span>
-              <span className="text-sm font-medium hidden md:block">Inventory</span>
-            </Link>
-            <Link href="#" className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 text-[#00e554] bg-[#474746] rounded-lg mx-2 border-l-2 border-[#00e554]">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_cart</span>
-              <span className="text-sm font-medium hidden md:block">Orders</span>
-            </Link>
-            <Link href="#" className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 text-[#c8c6c5] hover:text-[#00e554] mx-2 hover:bg-[#474746] rounded-lg transition-colors">
-              <span className="material-symbols-outlined">analytics</span>
-              <span className="text-sm font-medium hidden md:block">Analytics</span>
-            </Link>
-            <Link href="/shopkeeper/profile-setup" className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 text-[#c8c6c5] hover:text-[#00e554] mx-2 hover:bg-[#474746] rounded-lg transition-colors">
-              <span className="material-symbols-outlined">settings</span>
-              <span className="text-sm font-medium hidden md:block">Settings</span>
-            </Link>
-          </nav>
-        </aside>
-
-        {/* Dashboard Three-Pane Body */}
-        <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
-          
-          {/* Pane 1: Live Order Feed */}
-          <section className="w-full md:w-80 lg:w-96 flex flex-col bg-[#1c1b1b] border-r border-[#3b4b39] shrink-0 h-64 md:h-auto">
-            <div className="p-4 border-b border-[#3b4b39] flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#edffe7]">Live Orders</h2>
-              <div className="flex gap-1">
-                <span className="bg-[#00ff5f]/10 text-[#00e554] px-2 py-0.5 rounded text-[10px] font-bold border border-[#00ff5f]/20 tracking-wider">42 ACTIVE</span>
-              </div>
-            </div>
-            
-            {/* Filters */}
-            <div className="p-2 flex gap-2 overflow-x-auto no-scrollbar">
-              <button className="px-3 py-1 bg-[#00e554] text-[#00390f] font-bold rounded-full text-[11px] whitespace-nowrap">All</button>
-              <button className="px-3 py-1 border border-[#3b4b39] text-[#b9ccb5] hover:bg-[#2a2a2a] rounded-full text-[11px] whitespace-nowrap">Pending</button>
-              <button className="px-3 py-1 border border-[#3b4b39] text-[#b9ccb5] hover:bg-[#2a2a2a] rounded-full text-[11px] whitespace-nowrap">Delayed</button>
-              <button className="px-3 py-1 border border-[#3b4b39] text-[#b9ccb5] hover:bg-[#2a2a2a] rounded-full text-[11px] whitespace-nowrap">Refunds</button>
-            </div>
-            
-            {/* Scrollable List */}
-            <div className="flex-1 overflow-y-auto space-y-px bg-[#3b4b39]">
-              
-              {/* Order Item: Delayed */}
-              <div className="bg-[#131313] p-4 cursor-pointer hover:bg-[#2a2a2a] transition-colors border-l-2 border-[#00e554]">
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#00e554] text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>#OD-8821</span>
-                  <span className="text-[#ffb4ab] text-[10px] font-bold flex items-center gap-1 tracking-wider">
-                    <span className="w-1.5 h-1.5 bg-[#ffb4ab] rounded-full"></span>
-                    DELAYED (12m)
-                  </span>
-                </div>
-                <h3 className="text-[#e5e2e1] font-bold text-sm">Industrial Power Cell x2</h3>
-                <div className="mt-3 flex items-center justify-between text-[11px] text-[#b9ccb5]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-[#353534] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-xs">person</span>
-                    </div>
-                    <span>Rider: Marcus V.</span>
-                  </div>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>ETA: 14:22</span>
-                </div>
-              </div>
-              
-              {/* Order Item: Out for Delivery */}
-              <div className="bg-[#131313] p-4 cursor-pointer hover:bg-[#2a2a2a] transition-colors border-l-2 border-transparent">
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#b9ccb5] text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>#OD-8822</span>
-                  <span className="text-[#00e554] text-[10px] font-bold flex items-center gap-1 tracking-wider">
-                    <span className="w-1.5 h-1.5 bg-[#00e554] rounded-full animate-[pulse_2s_infinite] shadow-[0_0_8px_rgba(0,229,84,0.6)]"></span>
-                    IN TRANSIT
-                  </span>
-                </div>
-                <h3 className="text-[#e5e2e1] font-bold text-sm">Diagnostic Toolkit V3</h3>
-                <div className="mt-3 flex items-center justify-between text-[11px] text-[#b9ccb5]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-[#353534] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-xs">person</span>
-                    </div>
-                    <span>Rider: Sarah L.</span>
-                  </div>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>ETA: 08:45</span>
-                </div>
-              </div>
-
-              {/* Order Item: Refund Request */}
-              <div className="bg-[#353534]/30 p-4 cursor-pointer hover:bg-[#2a2a2a] transition-colors border-l-2 border-transparent">
-                <div className="flex justify-between mb-2">
-                  <span className="text-[#b9ccb5] text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>#OD-8819</span>
-                  <span className="text-[#c8c6c5] text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 border border-[#3b4b39] bg-[#201f1f] tracking-wider">
-                    REFUND CLAIM
-                  </span>
-                </div>
-                <h3 className="text-[#e5e2e1] font-bold text-sm">Cryo-Coolant Gel (5L)</h3>
-                <div className="mt-1">
-                  <span className="text-[#ffb4ab] text-[10px] italic">"Damaged packaging upon arrival"</span>
-                </div>
-              </div>
-
-            </div>
-          </section>
-
-          {/* Pane 2: Action Workspace (Details) */}
-          <section className="flex-1 overflow-y-auto bg-[#201f1f] flex flex-col">
-            
-            {/* Header */}
-            <div className="p-6 border-b border-[#3b4b39] bg-[#131313] flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold text-[#e5e2e1]">Order #OD-8821</h2>
-                  <span className="px-2 py-1 bg-[#93000a] text-[#ffb4ab] text-[10px] font-bold rounded tracking-wider">DELAYED</span>
-                </div>
-                <p className="text-[#b9ccb5] text-sm">Created 24 Oct 2023 at 13:45 • Customer: Nova Corp Industrial</p>
-              </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setShowRiderModal(true)}
-                  className="px-4 py-2 border border-[#3b4b39] hover:bg-[#2a2a2a] transition-colors text-[#e5e2e1] font-bold text-sm rounded flex items-center gap-2"
+        {/* Master Workspace: Split Feed & Detail Terminal */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Order Queue List */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Filter Pills */}
+            <div className="flex flex-wrap gap-2 pb-2">
+              {[
+                { id: 'ALL', label: 'All' },
+                { id: 'PENDING', label: 'Pending' },
+                { id: 'PREPARING', label: 'Packing' },
+                { id: 'READY_FOR_PICKUP', label: 'Ready' },
+                { id: 'DELIVERED', label: 'Done' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-3 py-1 text-xs font-tech font-bold uppercase border-2 border-black transition-all ${
+                    statusFilter === tab.id
+                      ? 'bg-black text-white shadow-[2px_2px_0px_#FFE600]'
+                      : 'bg-white text-neutral-700 hover:bg-neutral-100 shadow-[2px_2px_0px_#000]'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-sm">rebase_edit</span>
-                  Reassign Rider
+                  {tab.label}
                 </button>
-                <button className="px-4 py-2 bg-[#ffb4ab] text-[#690005] font-bold text-sm rounded hover:opacity-90 transition-all flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm">cancel</span>
-                  Force Cancel
-                </button>
-              </div>
+              ))}
             </div>
 
-            <div className="p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
-              
-              {/* Tracking & Map Section */}
-              <div className="xl:col-span-7 space-y-6">
-                <div className="bg-[#0e0e0e] border border-[#2d2d2d] rounded-lg overflow-hidden h-64 md:h-96 relative">
-                  {/* Map Mockup */}
-                  <div className="absolute inset-0 z-0 bg-[#2a2a2a] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800')", filter: 'grayscale(100%) brightness(40%) contrast(120%)' }}></div>
-                  <div className="absolute inset-0 bg-[#00e554]/5 mix-blend-color"></div>
-                  
-                  {/* Floating Telemetry Box */}
-                  <div className="absolute bottom-4 right-4 z-10 bg-[#1e1e1e]/80 backdrop-blur-md p-3 border border-[#3b4b39] rounded-lg space-y-2 w-48">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-[#b9ccb5]">Speed</span>
-                      <span className="text-[#00e554]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>42 km/h</span>
-                    </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-[#b9ccb5]">Battery</span>
-                      <span className="text-[#00e554]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>82%</span>
-                    </div>
-                    <div className="h-1 bg-[#3b4b39] rounded-full overflow-hidden">
-                      <div className="h-full bg-[#00e554] w-4/5"></div>
-                    </div>
-                  </div>
+            {/* Orders Feed */}
+            <div className="space-y-3">
+              {loading ? (
+                <div className="card-brutal p-8 text-center font-tech text-xs text-neutral-500">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-black" />
+                  LOADING STORE ORDERS...
                 </div>
+              ) : filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => {
+                  const isSelected = selectedOrder?.id === order.id;
+                  const firstItem = order.items?.[0];
 
-                {/* Payload Manifest */}
-                <div className="bg-[#131313] border border-[#3b4b39] rounded-lg p-5">
-                  <h3 className="font-bold text-[#00e554] mb-4 uppercase tracking-widest text-xs">Payload Manifest</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-[#3b4b39]/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#201f1f] flex items-center justify-center rounded border border-[#3b4b39]/30">
-                          <span className="material-symbols-outlined text-[#b9ccb5]">battery_charging_full</span>
-                        </div>
-                        <div>
-                          <p className="font-bold text-[#e5e2e1] text-sm">Industrial Power Cell</p>
-                          <p className="text-[11px] text-[#b9ccb5]">SKU: IPC-9000-X</p>
-                        </div>
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className={`card-brutal p-4 cursor-pointer transition-all border-2 ${
+                        isSelected
+                          ? 'border-black bg-[#FFE600]/15 shadow-[4px_4px_0px_#000] -translate-y-0.5'
+                          : 'border-black bg-white hover:bg-neutral-50 shadow-[2px_2px_0px_#000]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-tech text-xs font-black text-neutral-900">
+                          #{order.id.slice(0, 8).toUpperCase()}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-tech font-bold uppercase border border-black ${
+                            order.status === 'PENDING'
+                              ? 'bg-[#FF4800] text-white'
+                              : order.status === 'PREPARING'
+                                ? 'bg-[#FFE600] text-black'
+                                : order.status === 'READY_FOR_PICKUP'
+                                  ? 'bg-[#00E599] text-black'
+                                  : 'bg-neutral-100 text-neutral-800'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[#e5e2e1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>x2</p>
-                        <p className="text-[#00e554] text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>$4,200.00</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#201f1f] flex items-center justify-center rounded border border-[#3b4b39]/30">
-                          <span className="material-symbols-outlined text-[#b9ccb5]">precision_manufacturing</span>
-                        </div>
-                        <div>
-                          <p className="font-bold text-[#e5e2e1] text-sm">Diagnostic Toolkit V3</p>
-                          <p className="text-[11px] text-[#b9ccb5]">SKU: DTK-V3-MOD</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[#e5e2e1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>x1</p>
-                        <p className="text-[#00e554] text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>$850.00</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 pt-4 border-t border-[#3b4b39] flex justify-between items-end">
-                    <span className="text-[#b9ccb5] text-sm">Total Weight: 12.4kg</span>
-                    <div className="text-right">
-                      <span className="text-[#b9ccb5] text-[11px] uppercase tracking-wider block mb-1">Subtotal</span>
-                      <span className="text-xl font-bold text-[#00e554]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>$5,050.00</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Timeline & Logs */}
-              <div className="xl:col-span-5 space-y-6">
-                
-                {/* Event Timeline */}
-                <div className="bg-[#131313] border border-[#3b4b39] rounded-lg p-5">
-                  <h3 className="font-bold text-[#00e554] mb-6 uppercase tracking-widest text-xs">Event Timeline</h3>
-                  <div className="relative space-y-8 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-[#3b4b39]">
-                    
-                    {/* Event 1 */}
-                    <div className="relative pl-8">
-                      <div className="absolute left-0 top-1 w-6 h-6 bg-[#201f1f] rounded-full flex items-center justify-center ring-4 ring-[#131313]">
-                        <span className="material-symbols-outlined text-sm text-[#00e554]">check</span>
-                      </div>
-                      <p className="text-sm font-bold text-[#e5e2e1]">Order Confirmed</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">13:45 • Automated System</p>
-                    </div>
-                    
-                    {/* Event 2 */}
-                    <div className="relative pl-8">
-                      <div className="absolute left-0 top-1 w-6 h-6 bg-[#201f1f] rounded-full flex items-center justify-center ring-4 ring-[#131313]">
-                        <span className="material-symbols-outlined text-sm text-[#00e554]">inventory_2</span>
-                      </div>
-                      <p className="text-sm font-bold text-[#e5e2e1]">Package Picked Up</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">14:02 • Hub Alpha-7</p>
-                    </div>
-                    
-                    {/* Event 3 (The Alert) */}
-                    <div className="relative pl-8">
-                      <div className="absolute left-0 top-1 w-6 h-6 bg-[#93000a] rounded-full flex items-center justify-center ring-4 ring-[#131313]">
-                        <span className="material-symbols-outlined text-sm text-[#ffb4ab]">warning</span>
-                      </div>
-                      <p className="text-sm font-bold text-[#ffb4ab]">Delivery Delay Detected</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">14:15 • Heavy traffic in Zone 4</p>
-                      <div className="mt-3 p-3 bg-[#93000a]/20 border border-[#ffb4ab]/20 rounded">
-                        <p className="text-[11px] text-[#ffb4ab]">System suggested route recalculation. ETA updated to +12 minutes.</p>
+                      <p className="font-sans font-bold text-sm text-neutral-900 truncate">
+                        {firstItem?.name || 'Order Item'}{' '}
+                        {(order.items?.length ?? 0) > 1
+                          ? `+${(order.items?.length ?? 0) - 1} more`
+                          : ''}
+                      </p>
+
+                      <div className="mt-2 pt-2 border-t border-neutral-200 flex items-center justify-between text-xs font-tech text-neutral-600">
+                        <span className="truncate max-w-[180px]">
+                          📍 {order.deliveryAddress || 'Hyperlocal Corridor'}
+                        </span>
+                        <span className="font-black text-neutral-900 text-sm">₹{order.total}</span>
                       </div>
                     </div>
-                  </div>
+                  );
+                })
+              ) : (
+                <div className="card-brutal p-8 text-center bg-white">
+                  <Package className="w-8 h-8 mx-auto mb-2 text-neutral-400" />
+                  <p className="font-tech font-bold text-xs uppercase text-neutral-600">
+                    No orders in this state
+                  </p>
                 </div>
-
-                {/* Dispute & Refund */}
-                <div className="bg-[#131313] border border-[#3b4b39] rounded-lg p-5">
-                  <h3 className="font-bold text-[#00e554] mb-4 uppercase tracking-widest text-xs">Dispute & Refund</h3>
-                  <div className="space-y-4">
-                    <div className="p-3 bg-[#2a2a2a] rounded border border-[#3b4b39]">
-                      <p className="text-[11px] text-[#b9ccb5] mb-2">No active refund claims for this order.</p>
-                      <button className="w-full py-2 bg-[#474746] hover:bg-[#1b1b1c] text-[#e5e2e1] font-bold text-xs rounded transition-colors border border-[#3b4b39]">
-                        Initiate Courtesy Refund
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      <textarea className="w-full bg-[#0e0e0e] border border-[#3b4b39] rounded p-3 text-sm text-[#e5e2e1] outline-none focus:ring-1 focus:ring-[#00e554] min-h-[100px] resize-none" placeholder="Internal admin notes..."></textarea>
-                      <button className="w-full py-2 bg-[#00e554] text-[#00390f] font-bold text-xs rounded hover:opacity-90 transition-opacity">Save Internal Note</button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </section>
-
-        </div>
-      </div>
-
-      {/* Manual Rider Assignment Modal */}
-      {showRiderModal && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-          <div className="absolute inset-0 bg-[#131313]/80 backdrop-blur-sm" onClick={() => setShowRiderModal(false)}></div>
-          <div className="relative h-full w-full max-w-md bg-[#0e0e0e] shadow-2xl border-l border-[#3b4b39] animate-in slide-in-from-right duration-300 flex flex-col">
-            
-            <div className="p-6 border-b border-[#3b4b39] flex justify-between items-center bg-[#131313]">
-              <div>
-                <h2 className="text-xl font-bold text-[#e5e2e1]">Rider Management</h2>
-                <p className="text-[11px] text-[#b9ccb5] mt-1">Manual reassignment for #OD-8821</p>
-              </div>
-              <button className="text-[#b9ccb5] hover:text-[#e5e2e1] transition-colors" onClick={() => setShowRiderModal(false)}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              
-              {/* Availability Heatmap Mock */}
-              <div>
-                <h3 className="font-bold text-[#00e554] mb-3 uppercase tracking-widest text-xs">Nearby Availability</h3>
-                <div className="aspect-video bg-[#201f1f] rounded-lg relative overflow-hidden border border-[#3b4b39]">
-                  <div className="absolute inset-0 bg-[#2a2a2a] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600')", filter: 'grayscale(100%) brightness(30%) contrast(150%)' }}></div>
-                  <div className="absolute inset-0 bg-radial from-[#00e554]/30 to-transparent"></div>
-                  <div className="absolute top-2 left-2 px-2 py-1 bg-[#131313]/80 backdrop-blur text-[10px] text-[#00e554] rounded border border-[#00e554]/30 font-bold tracking-wider">
-                    12 RIDERS WITHIN 2KM
-                  </div>
-                </div>
-              </div>
-              
-              {/* Rider List */}
-              <div className="space-y-3">
-                <h3 className="font-bold text-[#00e554] mb-3 uppercase tracking-widest text-xs">Top Candidates</h3>
-                
-                {/* Rider Card 1 */}
-                <div className="p-4 bg-[#131313] border border-[#2d2d2d] rounded-lg flex items-center justify-between hover:border-[#00e554]/50 cursor-pointer transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#201f1f] flex items-center justify-center border border-[#3b4b39]/50">
-                      <span className="material-symbols-outlined text-[#00e554] text-sm">moped</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#e5e2e1] text-sm">Alex Chen</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">320m away • Level 4 Courier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[#00e554] text-xs font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>02m ETA</span>
-                    <button className="block mt-1.5 text-[10px] text-[#00390f] bg-[#00e554] font-bold px-3 py-1 rounded w-full hover:opacity-90">ASSIGN</button>
-                  </div>
-                </div>
-                
-                {/* Rider Card 2 */}
-                <div className="p-4 bg-[#131313] border border-[#2d2d2d] rounded-lg flex items-center justify-between hover:border-[#00e554]/50 cursor-pointer transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#201f1f] flex items-center justify-center border border-[#3b4b39]/50">
-                      <span className="material-symbols-outlined text-[#b9ccb5] text-sm">moped</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#e5e2e1] text-sm">Elena Rodriguez</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">850m away • Level 5 Courier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[#b9ccb5] text-xs font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>06m ETA</span>
-                    <button className="block mt-1.5 text-[10px] text-[#00390f] bg-[#00e554] font-bold px-3 py-1 rounded w-full hover:opacity-90">ASSIGN</button>
-                  </div>
-                </div>
-                
-                {/* Rider Card 3 (In-Progress) */}
-                <div className="p-4 bg-[#131313]/50 border border-[#2d2d2d] rounded-lg flex items-center justify-between opacity-60 pointer-events-none">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#201f1f] flex items-center justify-center border border-[#3b4b39]/50">
-                      <span className="material-symbols-outlined text-[#b9ccb5] text-sm">moped</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#e5e2e1] text-sm">Marcus V. (Active)</p>
-                      <p className="text-[11px] text-[#b9ccb5] mt-0.5">Currently assigned</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex flex-col items-end">
-                    <span className="bg-[#93000a]/20 text-[#ffb4ab] px-2 py-1 text-[9px] font-bold rounded tracking-widest border border-[#ffb4ab]/20">DELAYED</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 border-t border-[#3b4b39] bg-[#2a2a2a]">
-              <button 
-                onClick={() => setShowRiderModal(false)}
-                className="w-full py-3 bg-[#474746] text-[#e5e2e1] font-bold text-sm rounded hover:bg-[#1b1b1c] transition-colors border border-[#3b4b39]"
-              >
-                Cancel Reassignment
-              </button>
+              )}
             </div>
           </div>
-        </div>
-      )}
 
+          {/* Right Column: Selected Order Detail Terminal */}
+          <div className="lg:col-span-7">
+            {selectedOrder ? (
+              <div className="card-brutal bg-white p-6 space-y-6">
+                {/* Header Strip & Status */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-black">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-display font-black text-2xl uppercase text-neutral-900">
+                        MANIFEST #{selectedOrder.id.slice(0, 8).toUpperCase()}
+                      </h2>
+                      <span className="px-2 py-0.5 bg-black text-white text-xs font-tech font-bold uppercase">
+                        {selectedOrder.status}
+                      </span>
+                    </div>
+                    <p className="font-tech text-xs text-neutral-500 mt-1">
+                      Received: {new Date(selectedOrder.createdAt).toLocaleString()} · Method:{' '}
+                      {selectedOrder.paymentMethod}
+                    </p>
+                  </div>
+
+                  {/* Immediate Action Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {selectedOrder.status === 'PENDING' && (
+                      <button
+                        onClick={() => handleUpdateStatus(selectedOrder.id, 'PREPARING')}
+                        disabled={isUpdating}
+                        className="btn-brutal-yellow !h-10 !px-4 text-xs font-bold uppercase flex items-center gap-1.5"
+                      >
+                        <Package className="w-4 h-4" />
+                        <span>Accept & Start Pack</span>
+                      </button>
+                    )}
+
+                    {selectedOrder.status === 'PREPARING' && (
+                      <button
+                        onClick={() => handleUpdateStatus(selectedOrder.id, 'READY_FOR_PICKUP')}
+                        disabled={isUpdating}
+                        className="btn-brutal-black !h-10 !px-4 text-xs font-bold uppercase flex items-center gap-1.5 !bg-[#00E599] !text-black"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Ready For Courier</span>
+                      </button>
+                    )}
+
+                    {selectedOrder.status === 'READY_FOR_PICKUP' && (
+                      <button
+                        onClick={() => handleUpdateStatus(selectedOrder.id, 'PICKED_UP')}
+                        disabled={isUpdating}
+                        className="btn-brutal-black !h-10 !px-4 text-xs font-bold uppercase flex items-center gap-1.5"
+                      >
+                        <Truck className="w-4 h-4" />
+                        <span>Handed to Courier</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Items Manifest Checklist */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-tech font-bold text-xs uppercase text-neutral-700 tracking-wider">
+                      {'// PHYSICAL ITEMS TO BAG ('}
+                      {selectedOrder.items?.length || 0})
+                    </h3>
+                    <span className="font-tech text-[10px] text-neutral-500 uppercase">
+                      Inspect expiry & seal before dispatch
+                    </span>
+                  </div>
+
+                  <div className="border-2 border-black divide-y-2 divide-black">
+                    {selectedOrder.items?.map((item, idx: number) => (
+                      <div
+                        key={item.id || idx}
+                        className="p-3 bg-neutral-50 flex items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-none bg-black text-white font-tech text-xs font-bold flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <p className="font-sans font-bold text-sm text-neutral-900 leading-snug">
+                              {item.name}
+                            </p>
+                            <p className="font-tech text-xs text-neutral-500">
+                              Unit Price: ₹{item.unitPrice} · SKU:{' '}
+                              {item.productId?.slice(0, 8) || 'GEN-SKU'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="inline-block px-2.5 py-1 bg-white border border-black font-tech font-bold text-xs text-neutral-900">
+                            QTY: {item.quantity}
+                          </span>
+                          <p className="font-tech font-bold text-xs text-neutral-800 mt-1">
+                            ₹{(item.unitPrice * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Logistics Coordinates & Customer Instructions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border-2 border-black bg-neutral-50 space-y-2">
+                    <p className="font-tech text-xs font-bold uppercase text-neutral-700 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-[#FF4800]" />
+                      Delivery Coordinates
+                    </p>
+                    <p className="font-sans text-xs font-bold text-neutral-900 leading-relaxed">
+                      {selectedOrder.deliveryAddress || 'No detailed address provided'}
+                    </p>
+                    {selectedOrder.deliveryInstructions && (
+                      <div className="mt-2 pt-2 border-t border-neutral-300">
+                        <p className="font-tech text-[10px] text-neutral-500 uppercase font-bold">
+                          Rider Gate Note:
+                        </p>
+                        <p className="font-sans text-xs text-neutral-700 mt-0.5 italic">
+                          {'"'}
+                          {selectedOrder.deliveryInstructions}
+                          {'"'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 border-2 border-black bg-neutral-50 space-y-2">
+                    <p className="font-tech text-xs font-bold uppercase text-neutral-700 flex items-center gap-1.5">
+                      <Receipt className="w-4 h-4 text-black" />
+                      Financial Ledger
+                    </p>
+                    <div className="space-y-1 font-tech text-xs text-neutral-600">
+                      <div className="flex justify-between">
+                        <span>Items Subtotal:</span>
+                        <span className="font-bold text-neutral-900">
+                          ₹{selectedOrder.subtotal}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Delivery Fee:</span>
+                        <span>₹{selectedOrder.deliveryFee}</span>
+                      </div>
+                      <div className="flex justify-between text-neutral-500">
+                        <span>Platform Take-rate (6%):</span>
+                        <span>- ₹{((selectedOrder.subtotal || 0) * 0.06).toFixed(2)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-black flex justify-between font-bold text-sm text-neutral-900">
+                        <span>Merchant Net Payout:</span>
+                        <span className="text-[#00E599] bg-black px-1.5 py-0.5">
+                          ₹{((selectedOrder.subtotal || 0) * 0.94).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Print & Action Footer */}
+                <div className="pt-4 border-t-2 border-black flex items-center justify-between">
+                  <button
+                    onClick={() => window.print()}
+                    className="btn-brutal-white !h-9 !py-0 !px-3 font-tech text-xs font-bold uppercase flex items-center gap-1.5"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print Thermal Slip</span>
+                  </button>
+
+                  <span className="font-tech text-[10px] text-neutral-500 uppercase">
+                    Status: <strong className="text-black">{selectedOrder.status}</strong> ·
+                    Auto-notifies buyer
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="card-brutal p-12 text-center bg-white">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-neutral-400" />
+                <h3 className="font-display font-black text-xl uppercase text-neutral-900">
+                  No Order Selected
+                </h3>
+                <p className="font-sans text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
+                  Click any order from the queue on the left to inspect packing checklist and
+                  trigger courier dispatch.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <BrutalFooter />
     </div>
   );
 }

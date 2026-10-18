@@ -1,352 +1,515 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import { BrutalFooter } from '@/components/shared/brutal-footer';
+import { BrutalNav } from '@/components/shared/brutal-nav';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  DollarSign,
+  Eye,
+  Image as ImageIcon,
+  Rocket,
+  Tag,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+
+const PRESET_IMAGES = [
+  {
+    name: 'Fresh Fruits',
+    url: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&q=80&w=800',
+  },
+  {
+    name: 'Dairy & Milk',
+    url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=800',
+  },
+  {
+    name: 'Artisan Bakery',
+    url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=800',
+  },
+  {
+    name: 'Snacks & Chips',
+    url: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=800',
+  },
+  {
+    name: 'Cold Beverages',
+    url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=800',
+  },
+  {
+    name: 'Farm Veggies',
+    url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800',
+  },
+];
 
 export default function ProductManagementScreen() {
   const router = useRouter();
-  const [productName, setProductName] = useState('Velocity Apex Running Shoes');
-  const [productPrice, setProductPrice] = useState('129.99');
+  const [productName, setProductName] = useState('');
+  const [productPrice, setProductPrice] = useState('');
+  const [productMrp, setProductMrp] = useState('');
+  const [productDescription, setProductDescription] = useState('');
+  const [stockQuantity, setStockQuantity] = useState('50');
+  const [unit, setUnit] = useState('pack');
+  const [imageUrl, setImageUrl] = useState(PRESET_IMAGES[0].url);
+  const [categories, setCategories] = useState<Models.Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [store, setStore] = useState<Models.Store | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.push('/shopkeeper/dashboard');
-    }, 1000);
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const [cats, myStores] = await Promise.all([
+          api.products.categories().catch(() => []),
+          api.stores.myStores().catch(() => []),
+        ]);
+        setCategories(cats || []);
+        if (cats && cats.length > 0) setSelectedCategory(cats[0].id);
+        if (myStores && myStores.length > 0) setStore(myStores[0]);
+      } catch (err) {
+        console.error('Failed to load categories or store', err);
+      }
+    };
+    init();
+  }, []);
+
+  const numPrice = parseFloat(productPrice) || 0;
+  const numMrp = parseFloat(productMrp) || (numPrice ? Math.round(numPrice * 1.2) : 0);
+  const takeRate = numPrice * 0.06;
+  const merchantNet = numPrice - takeRate;
+  const discountPercent = numMrp > numPrice ? Math.round(((numMrp - numPrice) / numMrp) * 100) : 0;
+
+  const handlePriceChange = (val: string) => {
+    setProductPrice(val);
+    if (!productMrp) {
+      const p = parseFloat(val);
+      if (p) setProductMrp(String(Math.round(p * 1.2)));
+    }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!productName.trim() || !productPrice) {
+      setErrorMsg('Please specify both product title and selling price.');
+      return;
+    }
+    if (!store) {
+      setErrorMsg('No merchant store hub registered. Please configure store profile first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const createdProduct = await api.products.create({
+        name: productName.trim(),
+        sellingPrice: numPrice,
+        mrp: numMrp,
+        description: productDescription.trim() || undefined,
+        categoryId: selectedCategory || categories[0]?.id,
+        images: [imageUrl.trim() || PRESET_IMAGES[0].url],
+        unit: unit || 'pack',
+      });
+
+      await api.inventory.upsert(store.id, {
+        productId: createdProduct.id,
+        stock: parseInt(stockQuantity, 10) || 50,
+        priceOverride: numPrice,
+        isVisible: true,
+      });
+
+      router.push('/shopkeeper/dashboard');
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err) || 'Failed to publish product SKU');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentCategoryName = categories.find((c) => c.id === selectedCategory)?.name || 'General';
+
   return (
-    <div className="bg-background text-on-background min-h-screen">
-      
-      {/* Top Navigation */}
-      <header className="w-full top-0 sticky z-50 bg-surface shadow-sm flex justify-between items-center px-4 py-3 border-b border-outline-variant/30">
-        <div className="flex items-center gap-6">
-          <span className="text-xl font-bold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>MerchantHub</span>
-          <div className="hidden md:flex items-center gap-2 text-sm">
-            <span className="text-on-surface-variant font-medium">Inventory</span>
-            <span className="material-symbols-outlined text-on-surface-variant text-sm">chevron_right</span>
-            <span className="text-primary font-bold border-b-2 border-primary">Product Management</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="material-symbols-outlined text-primary hover:bg-surface-container-low p-2 rounded-full transition-colors">notifications</button>
-          <button className="material-symbols-outlined text-primary hover:bg-surface-container-low p-2 rounded-full transition-colors">help</button>
-          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary-container">
-            <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150" alt="Admin" />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+      <BrutalNav />
 
-      <div className="flex min-h-[calc(100vh-64px)] pb-20">
-        
-        {/* SideNavBar */}
-        <nav className="hidden lg:flex flex-col h-[calc(100vh-64px)] w-64 sticky left-0 top-16 bg-surface-container border-r border-outline-variant/30 py-6 gap-2 z-40">
-          <div className="px-6 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white">
-                <span className="material-symbols-outlined">store</span>
-              </div>
+      <main className="container-brutal py-8 sm:py-12 space-y-8">
+        {/* Navigation Breadcrumb & Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+          <div>
+            <Link
+              href="/shopkeeper/dashboard"
+              className="inline-flex items-center gap-1.5 font-tech text-xs font-bold text-neutral-600 hover:text-black mb-2 uppercase"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Merchant Console
+            </Link>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] ml-3 mb-2">
+              {'// HUB:'}
+              {store?.name || 'MICRO-HUB'}
+            </div>
+            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+              Register New Shelf SKU
+            </h1>
+            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+              Add catalog inventory directly to local store shelf. Instant propagation to nearby
+              customer apps.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-tech text-xs bg-[#00E599] text-black font-bold uppercase px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_#000]">
+              Take-Rate: Fixed 6.0%
+            </span>
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="p-4 bg-[#FF4800]/15 border-2 border-[#FF4800] text-black font-tech text-xs font-bold shadow-[3px_3px_0px_#000] flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-[#FF4800] shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Form Fields */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* 1. Identification Box */}
+            <div className="card-brutal p-6 space-y-4">
+              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
+                <Tag className="w-5 h-5 text-black" />
+                1. Product Identification
+              </h2>
+
               <div>
-                <p className="text-lg font-bold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>Global Store</p>
-                <p className="text-xs font-medium text-on-surface-variant">Verified Merchant</p>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Product Title / Commercial Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Organic Hass Avocados (2 Pack)"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  className="input-brutal text-sm"
+                />
               </div>
-            </div>
-          </div>
-          
-          <Link href="/shopkeeper/dashboard" className="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all mx-2 rounded-lg text-sm font-bold">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span>Dashboard</span>
-          </Link>
-          <Link href="/shopkeeper/dashboard" className="flex items-center gap-3 px-6 py-3 text-on-primary-container bg-primary-container rounded-lg mx-2 transition-all text-sm font-bold">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
-            <span>Inventory</span>
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all mx-2 rounded-lg text-sm font-bold">
-            <span className="material-symbols-outlined">shopping_cart</span>
-            <span>Orders</span>
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all mx-2 rounded-lg text-sm font-bold">
-            <span className="material-symbols-outlined">analytics</span>
-            <span>Analytics</span>
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all mx-2 rounded-lg text-sm font-bold">
-            <span className="material-symbols-outlined">settings</span>
-            <span>Settings</span>
-          </Link>
-          
-          <div className="mt-auto px-4">
-            <button className="w-full bg-primary text-white font-bold text-sm py-3 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2 hover:opacity-90">
-              <span className="material-symbols-outlined">add</span>
-              Add Product
-            </button>
-          </div>
-        </nav>
 
-        {/* Main Content Area */}
-        <main className="flex-1 flex overflow-hidden flex-col xl:flex-row">
-          
-          {/* Form Scrollable Area */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-10">
-            <div className="max-w-4xl mx-auto">
-              
-              <div className="flex items-center justify-between mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-on-surface" style={{ fontFamily: 'Montserrat, sans-serif' }}>Edit Product</h1>
-                  <p className="text-sm text-on-surface-variant mt-1">Update your product details and preview them in real-time.</p>
-                </div>
-                <div className="hidden sm:flex items-center gap-3">
-                  <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full font-bold text-[10px] tracking-wider">ACTIVE LISTING</span>
-                  <span className="text-xs text-on-surface-variant font-medium">Last saved 2m ago</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Left Column: Basic Info & Pricing */}
-                <div className="space-y-6">
-                  {/* Basic Info Card */}
-                  <section className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/30">
-                    <h2 className="text-xl font-bold text-primary mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>Basic Info</h2>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Product Name</label>
-                        <input 
-                          className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" 
-                          type="text" 
-                          value={productName}
-                          onChange={(e) => setProductName(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Description</label>
-                        <textarea className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm resize-none" rows={4} defaultValue="Engineered for pure speed and hyperlocal agility. The Apex features our responsive Flux-Core foam for maximum energy return on urban surfaces."></textarea>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Category</label>
-                          <select className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm appearance-none cursor-pointer">
-                            <option>Footwear</option>
-                            <option>Apparel</option>
-                            <option>Accessories</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">SKU</label>
-                          <input className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm" type="text" defaultValue="VEL-APX-001" />
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Pricing Card */}
-                  <section className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/30">
-                    <h2 className="text-xl font-bold text-primary mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>Pricing & Inventory</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Base Price ($)</label>
-                        <input 
-                          className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm" 
-                          type="number" 
-                          value={productPrice}
-                          onChange={(e) => setProductPrice(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Sale Price ($)</label>
-                        <input className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm" type="number" defaultValue="109.99" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Stock Quantity</label>
-                        <input className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm" type="number" defaultValue="45" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Tax Category</label>
-                        <select className="w-full bg-surface-container-low p-3 rounded-lg border border-transparent focus:border-primary outline-none text-sm appearance-none cursor-pointer">
-                          <option>Standard (15%)</option>
-                          <option>Reduced (5%)</option>
-                          <option>Zero (0%)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </section>
+                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                    Category Taxonomy *
+                  </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="input-brutal text-sm bg-white cursor-pointer"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Right Column: Images & Specs */}
-                <div className="space-y-6">
-                  {/* Product Images Card */}
-                  <section className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/30">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-bold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>Product Images</h2>
-                      <button className="text-primary text-xs font-bold flex items-center gap-1 hover:underline">
-                        <span className="material-symbols-outlined text-sm">upload</span>
-                        Add Media
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="aspect-square rounded-lg border-2 border-primary border-dashed overflow-hidden relative group cursor-pointer">
-                        <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300" alt="Shoe" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <span className="material-symbols-outlined text-white">edit</span>
-                        </div>
-                        <div className="absolute top-2 left-2 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded tracking-wider">MAIN</div>
-                      </div>
-                      <div className="aspect-square rounded-lg border border-outline-variant/30 overflow-hidden bg-surface flex items-center justify-center group cursor-pointer hover:border-primary transition-colors">
-                        <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&q=80&w=300" alt="Shoe Detail" />
-                      </div>
-                      <div className="aspect-square rounded-lg border border-outline-variant/30 overflow-hidden bg-surface flex items-center justify-center group cursor-pointer hover:border-primary transition-colors">
-                        <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&q=80&w=300" alt="Lifestyle" />
-                      </div>
-                      <div className="aspect-square rounded-lg border-2 border-dashed border-outline-variant/50 flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-primary hover:border-primary/50 transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined">add_photo_alternate</span>
-                        <span className="text-[10px] font-bold mt-2 tracking-wider">UPLOAD</span>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Specifications Card */}
-                  <section className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/30">
-                    <h2 className="text-xl font-bold text-primary mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>Specifications</h2>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Attribute</label>
-                          <input className="w-full bg-surface-container-low p-2.5 rounded-lg border border-transparent outline-none text-sm" type="text" defaultValue="Material" />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-bold mb-1.5 text-on-surface-variant">Value</label>
-                          <input className="w-full bg-surface-container-low p-2.5 rounded-lg border border-transparent outline-none text-sm" type="text" defaultValue="Recycled Flux-Mesh" />
-                        </div>
-                        <button className="mt-6 material-symbols-outlined text-error hover:bg-error-container p-2 rounded-full transition-colors cursor-pointer">delete</button>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <input className="w-full bg-surface-container-low p-2.5 rounded-lg border border-transparent outline-none text-sm" type="text" defaultValue="Weight" />
-                        </div>
-                        <div className="flex-1">
-                          <input className="w-full bg-surface-container-low p-2.5 rounded-lg border border-transparent outline-none text-sm" type="text" defaultValue="180g (Size 9)" />
-                        </div>
-                        <button className="material-symbols-outlined text-error hover:bg-error-container p-2 rounded-full transition-colors cursor-pointer">delete</button>
-                      </div>
-                      <button className="w-full py-3 border-2 border-dashed border-outline-variant/50 rounded-lg text-on-surface-variant text-sm font-bold hover:bg-surface-container-low hover:text-primary transition-all">
-                        + Add New Attribute
-                      </button>
-                    </div>
-                  </section>
+                <div>
+                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                    Pack / Measurement Unit
+                  </label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="input-brutal text-sm bg-white cursor-pointer"
+                  >
+                    <option value="pack">Pack / Box</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="500g">500 grams</option>
+                    <option value="piece">Single Piece</option>
+                    <option value="litre">1 Litre</option>
+                    <option value="bottle">Bottle</option>
+                  </select>
                 </div>
               </div>
 
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Consumer Description & Origin Notes
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Freshly sourced quality grade, locally packaged with 100% biodegradable seal..."
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  className="input-brutal text-sm resize-none"
+                />
+              </div>
+            </div>
+
+            {/* 2. Pricing & Financial Ledger */}
+            <div className="card-brutal p-6 space-y-4">
+              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
+                <DollarSign className="w-5 h-5 text-black" />
+                2. Pricing & Shelf Stock
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                    Selling Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    required
+                    placeholder="120"
+                    value={productPrice}
+                    onChange={(e) => handlePriceChange(e.target.value)}
+                    className="input-brutal text-sm font-tech font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                    MRP / List Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    placeholder="150"
+                    value={productMrp}
+                    onChange={(e) => setProductMrp(e.target.value)}
+                    className="input-brutal text-sm font-tech text-neutral-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                    Shelf Stock (Units) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={stockQuantity}
+                    onChange={(e) => setStockQuantity(e.target.value)}
+                    className="input-brutal text-sm font-tech font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Real-time Economic Calculator */}
+              <div className="p-4 bg-neutral-100 border-2 border-black space-y-2">
+                <p className="font-tech text-xs uppercase font-bold text-neutral-800 flex items-center justify-between">
+                  <span>Omnidrop Merchant Settlement Breakdown</span>
+                  {discountPercent > 0 && (
+                    <span className="px-2 py-0.5 bg-[#FF4800] text-white text-[10px]">
+                      {discountPercent}% OFF MRP
+                    </span>
+                  )}
+                </p>
+                <div className="grid grid-cols-3 gap-2 font-tech text-xs text-neutral-600 pt-2 border-t border-neutral-300">
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase block">
+                      Customer Pays
+                    </span>
+                    <strong className="text-neutral-900 text-sm">₹{numPrice.toFixed(2)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase block">
+                      Omnidrop Fee (6%)
+                    </span>
+                    <strong className="text-[#FF4800] text-sm">-₹{takeRate.toFixed(2)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase block">
+                      Your Bank Payout
+                    </span>
+                    <strong className="text-[#00E599] bg-black px-1.5 py-0.5 text-sm inline-block">
+                      ₹{merchantNet.toFixed(2)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Media Assets */}
+            <div className="card-brutal p-6 space-y-4">
+              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
+                <ImageIcon className="w-5 h-5 text-black" />
+                3. Imagery & Catalog Asset
+              </h2>
+
+              <div>
+                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  Image CDN / Web Link
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="input-brutal text-sm font-tech text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="font-tech text-xs uppercase font-bold text-neutral-600 mb-2">
+                  Or Pick a High-Resolution Preset:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {PRESET_IMAGES.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setImageUrl(preset.url)}
+                      className={`p-2 border-2 border-black text-left flex items-center gap-2 transition-all ${
+                        imageUrl === preset.url
+                          ? 'bg-[#FFE600] font-bold shadow-[2px_2px_0px_#000]'
+                          : 'bg-white hover:bg-neutral-50 shadow-[1px_1px_0px_#000]'
+                      }`}
+                    >
+                      <img
+                        src={preset.url}
+                        alt={preset.name}
+                        className="w-8 h-8 object-cover border border-black"
+                      />
+                      <span className="font-tech text-[11px] truncate">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Live Preview Split-Pane */}
-          <aside className="hidden xl:flex w-[420px] bg-surface-container-low border-l border-outline-variant/30 flex-col items-center justify-center p-8 relative">
-            <div className="absolute top-8 left-8">
-              <span className="flex items-center gap-2 text-xs font-bold text-on-surface-variant tracking-wider">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                LIVE PREVIEW
-              </span>
-            </div>
-            
-            {/* Phone Mockup */}
-            <div className="bg-white w-full max-w-[320px] aspect-[9/19.5] overflow-hidden flex flex-col shadow-2xl rounded-[40px] border-[12px] border-[#191c1d] scale-95 origin-center">
-              {/* App Status Bar */}
-              <div className="h-8 flex justify-between items-center px-4 pt-2">
-                <span className="text-[10px] font-bold">9:41</span>
-                <div className="flex gap-1">
-                  <span className="material-symbols-outlined text-[10px]">signal_cellular_4_bar</span>
-                  <span className="material-symbols-outlined text-[10px]">wifi</span>
-                  <span className="material-symbols-outlined text-[10px]">battery_full</span>
-                </div>
+          {/* Right Column: Customer Card Preview & Submit */}
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
+            <div className="card-brutal p-6 bg-white space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b-2 border-black">
+                <h3 className="font-display font-black text-base uppercase text-neutral-900 flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-black" />
+                  Live Shelf Preview
+                </h3>
+                <span className="font-tech text-[10px] bg-black text-[#FFE600] px-2 py-0.5 uppercase font-bold">
+                  Customer App View
+                </span>
               </div>
-              
-              {/* App Content */}
-              <div className="flex-1 overflow-y-auto pb-4">
-                <div className="h-64 w-full relative">
-                  <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400" alt="Preview" />
-                  <button className="absolute top-4 left-4 bg-white/80 p-2 rounded-full shadow-sm">
-                    <span className="material-symbols-outlined text-lg">arrow_back</span>
+
+              <p className="font-sans text-xs text-neutral-600">
+                This is exactly how this item will be presented to shoppers within your delivery
+                radius:
+              </p>
+
+              {/* Neo-Brutalist Customer Card */}
+              <div className="border-2 border-black bg-white shadow-[4px_4px_0px_#000] overflow-hidden">
+                <div className="h-44 bg-neutral-100 relative border-b-2 border-black overflow-hidden">
+                  <img
+                    src={imageUrl || PRESET_IMAGES[0].url}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 left-2">
+                    <span className="px-2 py-0.5 bg-black text-white font-tech text-[10px] font-bold uppercase border border-white">
+                      {currentCategoryName}
+                    </span>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-0.5 bg-[#FFE600] text-black font-tech text-[10px] font-bold uppercase border border-black">
+                      ⚡ 12-MIN DISPATCH
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h4 className="font-sans font-black text-base text-neutral-900 leading-tight">
+                      {productName || 'Product Title Goes Here'}
+                    </h4>
+                    <p className="font-tech text-xs text-neutral-500 mt-0.5">
+                      Per {unit} · In Stock ({stockQuantity || 0})
+                    </p>
+                  </div>
+
+                  <div className="flex items-baseline gap-2 pt-1">
+                    <span className="font-display font-black text-2xl text-neutral-900">
+                      ₹{numPrice ? numPrice.toFixed(2) : '0.00'}
+                    </span>
+                    {numMrp > numPrice && (
+                      <span className="font-tech text-xs text-neutral-500 line-through">
+                        ₹{numMrp.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="w-full py-2 bg-neutral-900 text-white font-tech text-xs font-bold uppercase border-2 border-black cursor-not-allowed opacity-80"
+                  >
+                    + ADD TO TOTE (DEMO)
                   </button>
                 </div>
-                
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-bold text-on-surface leading-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>{productName || 'Product Name'}</h3>
-                    <span className="material-symbols-outlined text-primary">favorite</span>
-                  </div>
-                  <p className="text-xl font-bold text-primary mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>${productPrice || '0.00'}</p>
-                  
-                  <div className="flex gap-2 mb-4">
-                    <span className="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold tracking-wider">FASTEST DELIVERY</span>
-                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[10px] font-bold tracking-wider">TOP RATED</span>
-                  </div>
-                  
-                  <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">
-                    Engineered for pure speed and hyperlocal agility. The Apex features our responsive Flux-Core foam for maximum energy return.
-                  </p>
-                  
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-bold tracking-wider text-on-surface-variant">SELECT SIZE</p>
-                    <div className="flex gap-2">
-                      <div className="w-10 h-10 border-2 border-primary rounded-lg flex items-center justify-center text-xs font-bold bg-primary-container text-on-primary-container cursor-pointer">9</div>
-                      <div className="w-10 h-10 border border-outline-variant/50 rounded-lg flex items-center justify-center text-xs text-on-surface-variant cursor-pointer hover:border-primary/50">10</div>
-                      <div className="w-10 h-10 border border-outline-variant/50 rounded-lg flex items-center justify-center text-xs text-on-surface-variant cursor-pointer hover:border-primary/50">11</div>
-                      <div className="w-10 h-10 border border-outline-variant/50 rounded-lg flex items-center justify-center text-xs text-on-surface-variant cursor-pointer hover:border-primary/50">12</div>
-                    </div>
-                  </div>
+              </div>
+
+              {/* Validation Checklist */}
+              <div className="space-y-1.5 pt-2 font-tech text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className={`w-3.5 h-3.5 ${productName.trim() ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                  />
+                  <span className={productName.trim() ? 'text-black' : 'text-neutral-500'}>
+                    Product Title Configured
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className={`w-3.5 h-3.5 ${numPrice > 0 ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                  />
+                  <span className={numPrice > 0 ? 'text-black' : 'text-neutral-500'}>
+                    Price & Margins Calculated
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className={`w-3.5 h-3.5 ${parseInt(stockQuantity, 10) > 0 ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                  />
+                  <span
+                    className={parseInt(stockQuantity, 10) > 0 ? 'text-black' : 'text-neutral-500'}
+                  >
+                    Initial Shelf Stock Loaded
+                  </span>
                 </div>
               </div>
-              
-              {/* Add to Cart Button */}
-              <div className="p-4 border-t border-surface-container-high bg-white">
-                <button className="w-full bg-primary text-white py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-lg">shopping_bag</span>
-                  Add to Cart
+
+              {/* CTA Action */}
+              <div className="pt-4 border-t-2 border-black space-y-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-brutal-yellow w-full !h-12 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]"
+                >
+                  <Rocket className="w-4 h-4" />
+                  <span>{loading ? 'Publishing SKU...' : 'Publish to Active Shelf'}</span>
                 </button>
+
+                <Link
+                  href="/shopkeeper/dashboard"
+                  className="block text-center font-tech text-xs font-bold uppercase text-neutral-600 hover:text-black py-1"
+                >
+                  Cancel and Return
+                </Link>
               </div>
             </div>
-            
-            <div className="mt-8 flex flex-col items-center gap-3">
-              <p className="text-xs text-on-surface-variant italic text-center opacity-70">Preview updates automatically as you type</p>
-              <div className="flex gap-4">
-                <span className="material-symbols-outlined text-primary cursor-pointer transition-colors">phone_iphone</span>
-                <span className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer transition-colors">tablet_mac</span>
-                <span className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer transition-colors">desktop_windows</span>
-              </div>
-            </div>
-          </aside>
-
-        </main>
-      </div>
-
-      {/* Sticky Footer Actions */}
-      <footer className="fixed bottom-0 lg:left-64 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-outline-variant/30 py-4 px-6 md:px-10 flex flex-col sm:flex-row items-center justify-between z-50 gap-4">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-on-surface-variant text-sm">
-            <span className="material-symbols-outlined text-lg text-primary">check_circle</span>
-            <span className="font-medium">All changes synced</span>
           </div>
-          <button className="hidden md:flex text-on-surface-variant hover:text-primary transition-colors items-center gap-2 text-sm font-bold">
-            <span className="material-symbols-outlined text-lg">visibility</span>
-            View in Store
-          </button>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button className="hidden sm:block px-6 py-2.5 rounded-xl text-on-surface-variant text-sm font-bold hover:bg-surface-container-high transition-all">Discard Changes</button>
-          <button className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-surface border-2 border-primary text-primary text-sm font-bold hover:bg-primary/5 transition-all">Draft Save</button>
-          <button 
-            onClick={handleSave}
-            disabled={loading}
-            className="flex-1 sm:flex-none px-8 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
-          >
-            {loading ? 'Saving...' : 'Save & Publish'}
-            {!loading && <span className="material-symbols-outlined text-lg">rocket_launch</span>}
-          </button>
-        </div>
-      </footer>
+        </form>
+      </main>
 
+      <BrutalFooter />
     </div>
   );
 }

@@ -1,8 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalInput,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors } from '@/constants/theme';
+import { useAuth } from '@/providers/auth-provider';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/providers/auth-provider';
+import { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -15,91 +32,178 @@ export default function ForgotPasswordScreen() {
     if (!email) return;
     setLoading(true);
     try {
-      await resetPassword(email);
+      await resetPassword(email.trim());
       setSuccess(true);
-    } catch (err) {
-      // Error handled in context
+    } catch {
+      // Error handled by Auth context
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View className="flex-row items-center px-5 py-4">
-            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 active:opacity-70">
-              <Ionicons name="arrow-back" size={24} color="#006e24" />
-            </TouchableOpacity>
-            <Text className="font-bold text-xl text-on-background ml-2">Reset Password</Text>
-          </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ CREDENTIAL RECOVERY · OMNIDROP SECURITY" />
+      <BrutalHeader title="Passkey Recovery" subtitle="Identity Verification" />
 
-          {/* Main Content */}
-          <View className="flex-1 px-5 pt-8 pb-10">
-            <View className="mb-10">
-              <View className="w-16 h-16 bg-primary-container rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-                <Ionicons name="key-outline" size={32} color="#006e24" />
-              </View>
-              <Text className="font-bold text-2xl text-on-surface mb-2">Forgot Password?</Text>
-              <Text className="text-base text-on-surface-variant">Don't worry! It happens. Please enter the email address associated with your account.</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: 18 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <BrutalCard style={{ padding: 20, marginTop: 8 }}>
+            <View style={{ marginBottom: 18 }}>
+              <BrutalBadge
+                label="// SECURITY DISPATCH"
+                variant="yellow"
+                style={{ marginBottom: 8 }}
+              />
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: '900',
+                  color: BrutalColors.black,
+                  textTransform: 'uppercase',
+                  letterSpacing: -0.3,
+                }}
+              >
+                Reset Account Passkey
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#555',
+                  marginTop: 4,
+                  lineHeight: 17,
+                }}
+              >
+                Enter your registered operator email to receive a cryptographically verified passkey
+                reset token.
+              </Text>
             </View>
 
             {error && (
-              <View className="bg-error-container rounded-xl p-4 mb-6 flex-row items-center justify-between">
-                <Text className="text-on-error-container flex-1 mr-2">{error}</Text>
-                <TouchableOpacity onPress={clearError}>
-                  <Ionicons name="close" size={20} color="#b3261e" />
+              <View
+                style={{
+                  backgroundColor: '#FFEBEA',
+                  borderWidth: 2,
+                  borderColor: BrutalColors.red,
+                  padding: 10,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}
+                >
+                  <MaterialIcons
+                    name="error-outline"
+                    size={16}
+                    color={BrutalColors.red}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={{ color: BrutalColors.red, fontWeight: '800', fontSize: 11, flex: 1 }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={clearError} style={{ padding: 2 }}>
+                  <MaterialIcons name="close" size={16} color={BrutalColors.red} />
                 </TouchableOpacity>
               </View>
             )}
-            
+
             {success ? (
-              <View className="items-center">
-                <View className="bg-primary-container p-4 rounded-xl mb-6 flex-row items-center justify-center">
-                  <Text className="text-on-primary-container font-medium text-center">We've sent a password reset link to {email}</Text>
-                </View>
-                <TouchableOpacity 
-                  onPress={() => router.replace('/(auth)/login')}
-                  className="bg-primary h-14 rounded-full flex-row items-center justify-center w-full active:opacity-80"
+              <View style={{ gap: 16 }}>
+                <View
+                  style={{
+                    backgroundColor: '#E8FBF4',
+                    borderWidth: 2,
+                    borderColor: BrutalColors.green,
+                    padding: 14,
+                  }}
                 >
-                  <Text className="text-on-primary font-bold text-base">Back to Login</Text>
-                </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <MaterialIcons
+                      name="check-circle"
+                      size={18}
+                      color="#008855"
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={{
+                        fontWeight: '900',
+                        fontSize: 13,
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      Dispatch Successful
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#333', fontWeight: '600', lineHeight: 17 }}>
+                    Reset link transmitted to {email}. Check your inbox or spam directory to
+                    authorize password update.
+                  </Text>
+                </View>
+
+                <BrutalButton
+                  title="Return To Sign In"
+                  onPress={() => router.replace('/(auth)/login')}
+                  variant="yellow"
+                  size="md"
+                  fullWidth
+                />
               </View>
             ) : (
-              <View className="gap-6 flex-1">
-              {/* Email Input */}
-              <View className="gap-2">
-                <Text className="font-bold text-xs text-on-surface-variant uppercase tracking-wider">Email Address</Text>
-                <View className="flex-row items-center bg-surface-container-lowest border border-outline-variant rounded-xl px-4 h-14">
-                  <TextInput 
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="Enter your registered email"
-                    placeholderTextColor="#6b7c68"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    className="flex-1 text-base text-on-surface h-full"
-                  />
-                </View>
-              </View>
+              <View>
+                <BrutalInput
+                  label="Registered Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="operator@omnidrop.network"
+                  keyboardType="email-address"
+                  leftIcon="email"
+                  autoCapitalize="none"
+                />
 
-              {/* Submit Button */}
-              <TouchableOpacity 
-                onPress={handleSubmit}
-                disabled={loading || email.length === 0}
-                className={`h-14 rounded-full flex-row items-center justify-center mt-4 active:opacity-80 ${email.length > 0 ? 'bg-primary' : 'bg-surface-container-high'}`}
-              >
-                <Text className={`font-bold text-base mr-2 ${email.length > 0 ? 'text-on-primary' : 'text-on-surface-variant'}`}>{loading ? 'Sending...' : 'Send Reset Link'}</Text>
-                {!loading && <Ionicons name="arrow-forward" size={20} color={email.length > 0 ? "#ffffff" : "#3b4b39"} />}
-              </TouchableOpacity>
-            </View>
+                <BrutalButton
+                  title="Transmit Reset Token →"
+                  onPress={handleSubmit}
+                  loading={loading}
+                  disabled={!email}
+                  variant="yellow"
+                  size="lg"
+                  fullWidth
+                  style={{ marginTop: 6 }}
+                />
+
+                <TouchableOpacity
+                  onPress={() => router.replace('/(auth)/login')}
+                  style={{ marginTop: 18, alignItems: 'center' }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      color: BrutalColors.black,
+                    }}
+                  >
+                    ← Cancel & Return to Login
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
-          </View>
+          </BrutalCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

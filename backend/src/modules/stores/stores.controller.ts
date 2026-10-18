@@ -1,21 +1,21 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-  Query,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
-import { StoresService } from './stores.service';
-import { CreateStoreDto, UpdateStoreDto, NearbyStoresQueryDto } from './dto/store.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
 import { User } from '../../database/entities';
+import { CreateStoreDto, NearbyStoresQueryDto, UpdateStoreDto } from './dto/store.dto';
+import { StoresService } from './stores.service';
 
 @Controller('stores')
 export class StoresController {
@@ -48,11 +48,7 @@ export class StoresController {
 
   @Roles(UserRole.SHOPKEEPER)
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @CurrentUser() user: User,
-    @Body() dto: UpdateStoreDto,
-  ) {
+  update(@Param('id') id: string, @CurrentUser() user: User, @Body() dto: UpdateStoreDto) {
     return this.storesService.update(id, user.id, dto);
   }
 

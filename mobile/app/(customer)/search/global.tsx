@@ -1,59 +1,97 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ImageBackground, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import {
+  BrutalBadge,
+  BrutalBottomNav,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  ImageBackground,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function GlobalSearchScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
+  const [recentQueries, setRecentQueries] = useState([
+    'ORGANIC AVOCADOS',
+    'COLD BREW CONCENTRATE',
+    'ARTISAN SOURDOUGH',
+  ]);
 
   const trendingSearches = [
-    'Organic Avocados',
-    'AirPods Pro 2',
-    'Artisanal Sourdough',
-    'Energy Drinks',
-    'Summer Skincare'
+    'COLD PRESSED JUICE',
+    'ALMOND BUTTER',
+    'SOURDOUGH LOAF',
+    'ENERGY DRINKS',
+    'ORGANIC EGGS',
   ];
 
   const handleSearch = (query: string) => {
-    setSearchQuery(query);
+    if (!query.trim()) return;
     router.push({ pathname: '/(customer)/search/results', params: { q: query } });
+  };
+
+  const clearRecent = (queryToClear?: string) => {
+    if (queryToClear) {
+      setRecentQueries(recentQueries.filter((q) => q !== queryToClear));
+    } else {
+      setRecentQueries([]);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top App Bar */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialIcons name="bolt" size={28} color="#00e554" />
-          <Text style={styles.headerTitle}>OmniDrop</Text>
-        </View>
-        <TouchableOpacity style={styles.iconButton}>
-          <MaterialIcons name="shopping-cart" size={24} color="#b9ccb5" />
-        </TouchableOpacity>
-      </View>
+      <BrutalTelemetryStrip left="GLOBAL RADAR // EXPLORE CATALOG" right="STATUS: SCANNING" />
+
+      <BrutalHeader
+        title="EXPLORE RADAR"
+        onBack={() => router.back()}
+        rightAction={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => router.push('/(customer)/cart')}
+          >
+            <Ionicons name="bag-handle" size={18} color={BrutalColors.black} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* Search Input Section */}
-        <View style={styles.searchSection}>
-          <View style={[styles.searchInputContainer, isFocused && styles.searchInputFocused]}>
-            <MaterialIcons name="search" size={24} color="#00e554" style={styles.searchIcon} />
+        {/* Search Console Input */}
+        <View style={styles.searchConsoleWrapper}>
+          <View style={styles.searchConsole}>
+            <Ionicons name="search" size={20} color={BrutalColors.black} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for groceries, tech, or daily essentials..."
-              placeholderTextColor="#849581"
+              placeholder="SEARCH CATALOG, SKUS, HUBS..."
+              placeholderTextColor="#888"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
               onSubmitEditing={() => handleSearch(searchQuery)}
               autoFocus={true}
+              returnKeyType="search"
             />
-            <TouchableOpacity onPress={() => router.push('/(customer)/search/voice')} style={styles.micButton}>
-              <MaterialIcons name="mic" size={24} color="#b9ccb5" />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={18} color="#888" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/search/voice')}
+              style={styles.voiceMicBtn}
+            >
+              <Ionicons name="mic" size={18} color={BrutalColors.black} />
             </TouchableOpacity>
           </View>
         </View>
@@ -61,156 +99,176 @@ export default function GlobalSearchScreen() {
         {/* Trending Searches */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="trending-up" size={24} color="#00ff5f" style={styles.sectionIcon} />
-            <Text style={styles.sectionTitle}>Trending Searches</Text>
+            <Text style={styles.sectionTitle}>TRENDING SEARCHES</Text>
+            <BrutalBadge label="REAL-TIME" variant="yellow" />
           </View>
-          <View style={styles.tagsContainer}>
+          <View style={styles.chipsContainer}>
             {trendingSearches.map((tag, index) => (
-              <TouchableOpacity key={index} style={styles.tagButton} onPress={() => handleSearch(tag)}>
-                <Text style={styles.tagText}>{tag}</Text>
+              <TouchableOpacity
+                key={index}
+                style={styles.trendingChip}
+                onPress={() => handleSearch(tag)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trending-up" size={14} color={BrutalColors.black} />
+                <Text style={styles.trendingChipText}>{tag}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Recently Searched */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderBetween}>
-            <View style={styles.sectionHeaderLeft}>
-              <MaterialIcons name="history" size={24} color="#849581" style={styles.sectionIcon} />
-              <Text style={styles.sectionTitle}>Recently Searched</Text>
+        {/* Recent Search Logs */}
+        {recentQueries.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>RECENT SEARCH LOGS</Text>
+              <TouchableOpacity onPress={() => clearRecent()}>
+                <Text style={styles.clearAllText}>CLEAR LOGS</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.recentList}>
-            <TouchableOpacity style={styles.recentItem} onPress={() => handleSearch('Cold Brew Coffee Concentrate')}>
-              <View style={styles.recentItemLeft}>
-                <MaterialIcons name="search" size={20} color="#849581" />
-                <Text style={styles.recentItemText}>Cold Brew Coffee Concentrate</Text>
-              </View>
-              <MaterialIcons name="close" size={16} color="#849581" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.recentItem} onPress={() => handleSearch('Wireless Mechanical Keyboard')}>
-              <View style={styles.recentItemLeft}>
-                <MaterialIcons name="search" size={20} color="#849581" />
-                <Text style={styles.recentItemText}>Wireless Mechanical Keyboard</Text>
-              </View>
-              <MaterialIcons name="close" size={16} color="#849581" />
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Shop by Category (Asymmetric Bento Grid) */}
+            <View style={styles.recentList}>
+              {recentQueries.map((query, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.recentCard}
+                  onPress={() => handleSearch(query)}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Ionicons name="time-outline" size={16} color="#666" />
+                    <Text style={styles.recentQueryText}>{query}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => clearRecent(query)} style={{ padding: 4 }}>
+                    <Ionicons name="close" size={16} color={BrutalColors.black} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Asymmetric Bento Taxonomy Grid */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Shop by Category</Text>
-          <View style={styles.bentoGrid}>
-            
-            {/* Groceries - Large */}
-            <TouchableOpacity style={styles.bentoLarge} activeOpacity={0.9} onPress={() => router.push('/(customer)/category/groceries')}>
-              <ImageBackground 
-                source={{ uri: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800' }} 
-                style={styles.bentoImage}
-                imageStyle={{ borderRadius: 12 }}
+          <Text style={styles.sectionTitle}>HYPERLOCAL CORRIDORS</Text>
+          <Text style={styles.sectionSubtitle}>SELECT STORE HUB OR CATEGORY DEPOT</Text>
+
+          <View style={styles.bentoContainer}>
+            {/* Groceries - Large Column */}
+            <TouchableOpacity
+              style={styles.bentoLarge}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: '/(customer)/products',
+                  params: { categoryId: 'groceries' },
+                })
+              }
+            >
+              <ImageBackground
+                source={{
+                  uri: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
+                }}
+                style={styles.bentoBg}
               >
-                <View style={[styles.bentoOverlay, { backgroundColor: 'rgba(0, 110, 36, 0.4)' }]} />
-                <View style={styles.bentoContentBottom}>
-                  <Text style={styles.bentoTitleLarge}>Groceries</Text>
-                  <Text style={styles.bentoSubtitle}>15 min delivery</Text>
+                <View style={styles.bentoBadge}>
+                  <Text style={styles.bentoBadgeText}>&lt; 10 MIN</Text>
+                </View>
+                <View style={styles.bentoInfoBanner}>
+                  <Text style={styles.bentoTitleLarge}>FRESH GROCERIES</Text>
+                  <Text style={styles.bentoSubLarge}>LOCAL HARVEST & PANTRY</Text>
                 </View>
               </ImageBackground>
             </TouchableOpacity>
 
-            <View style={styles.bentoRightColumn}>
-              {/* Tech */}
-              <TouchableOpacity style={styles.bentoMedium} activeOpacity={0.9} onPress={() => router.push('/(customer)/category/tech')}>
-                <ImageBackground 
-                  source={{ uri: 'https://images.unsplash.com/photo-1526406915894-7bcd65f60845?auto=format&fit=crop&q=80&w=500' }} 
-                  style={styles.bentoImage}
-                  imageStyle={{ borderRadius: 12 }}
+            {/* Right Column Bento Stack */}
+            <View style={styles.bentoRightCol}>
+              {/* Bakery Depot */}
+              <TouchableOpacity
+                style={styles.bentoMedium}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(customer)/products',
+                    params: { categoryId: 'bakery' },
+                  })
+                }
+              >
+                <ImageBackground
+                  source={{
+                    uri: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=500',
+                  }}
+                  style={styles.bentoBg}
                 >
-                  <View style={[styles.bentoOverlay, { backgroundColor: 'rgba(87, 93, 120, 0.5)' }]} />
-                  <View style={styles.bentoContentCenterLeft}>
-                    <Text style={styles.bentoTitleMedium}>Tech & Gadgets</Text>
+                  <View style={[styles.bentoBadge, { backgroundColor: BrutalColors.yellow }]}>
+                    <Text style={styles.bentoBadgeText}>ARTISAN</Text>
+                  </View>
+                  <View style={styles.bentoInfoBanner}>
+                    <Text style={styles.bentoTitleMedium}>BAKERY & CAFE</Text>
                   </View>
                 </ImageBackground>
               </TouchableOpacity>
-              
-              <View style={styles.bentoSmallRow}>
-                {/* Pharmacy */}
-                <TouchableOpacity style={styles.bentoSmall} activeOpacity={0.9} onPress={() => router.push('/(customer)/category/pharmacy')}>
-                  <ImageBackground 
-                    source={{ uri: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&q=80&w=300' }} 
-                    style={styles.bentoImage}
-                    imageStyle={{ borderRadius: 12 }}
-                  >
-                    <View style={[styles.bentoOverlay, { backgroundColor: 'rgba(0, 113, 37, 0.4)' }]} />
-                    <View style={styles.bentoContentCenter}>
-                      <Text style={styles.bentoTitleSmall}>Pharmacy</Text>
-                    </View>
-                  </ImageBackground>
+
+              {/* Essentials Dual Row */}
+              <View style={styles.bentoDualRow}>
+                <TouchableOpacity
+                  style={styles.bentoSmall}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(customer)/products',
+                      params: { categoryId: 'daily' },
+                    })
+                  }
+                >
+                  <View style={[styles.bentoColorCard, { backgroundColor: BrutalColors.yellow }]}>
+                    <Ionicons name="flash-outline" size={24} color={BrutalColors.black} />
+                    <Text style={styles.bentoTitleSmall}>DAILY FAST</Text>
+                  </View>
                 </TouchableOpacity>
 
-                {/* Home */}
-                <TouchableOpacity style={styles.bentoSmall} activeOpacity={0.9} onPress={() => router.push('/(customer)/category/home')}>
-                  <ImageBackground 
-                    source={{ uri: 'https://images.unsplash.com/photo-1556020685-e631933f1160?auto=format&fit=crop&q=80&w=300' }} 
-                    style={styles.bentoImage}
-                    imageStyle={{ borderRadius: 12 }}
-                  >
-                    <View style={[styles.bentoOverlay, { backgroundColor: 'rgba(167, 58, 0, 0.4)' }]} />
-                    <View style={styles.bentoContentCenter}>
-                      <Text style={styles.bentoTitleSmall}>Home Essentials</Text>
-                    </View>
-                  </ImageBackground>
+                <TouchableOpacity
+                  style={styles.bentoSmall}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(customer)/products',
+                      params: { categoryId: 'pharmacy' },
+                    })
+                  }
+                >
+                  <View style={[styles.bentoColorCard, { backgroundColor: BrutalColors.green }]}>
+                    <Ionicons name="medkit-outline" size={24} color={BrutalColors.black} />
+                    <Text style={styles.bentoTitleSmall}>CARE HUB</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
-
           </View>
         </View>
 
         {/* Dynamic Offer Card */}
-        <View style={[styles.section, styles.offerSection]}>
-          <View style={styles.offerCard}>
-            <View style={styles.offerContent}>
-              <Text style={styles.offerTitle}>Free Delivery on all Tech!</Text>
-              <Text style={styles.offerDesc}>Use code TECHRUN at checkout. Ends in 2h.</Text>
-            </View>
-            <View style={styles.offerIconWrapper}>
-              <MaterialIcons name="local-shipping" size={80} color="rgba(0, 255, 95, 0.3)" style={styles.offerIcon} />
-            </View>
+        <BrutalCard bg={BrutalColors.yellow} style={{ marginBottom: 24 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 6,
+            }}
+          >
+            <Text style={styles.offerBadge}>DISPATCH PROMO // ACTIVE</Text>
+            <BrutalBadge label="PROMO: HYPERFAST" variant="black" />
           </View>
-        </View>
-
+          <Text style={styles.offerTitle}>ZERO RUNNER FEE ON ORDERS &gt; ₹199</Text>
+          <Text style={styles.offerDesc}>
+            Autonomous routing applies instant discount during checkout authorization.
+          </Text>
+        </BrutalCard>
       </ScrollView>
 
-      {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/(customer)/home')}>
-          <MaterialIcons name="home" size={24} color="#849581" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItemActive}>
-          <MaterialIcons name="search" size={24} color="#00ff5f" />
-          <Text style={styles.navTextActive}>Explore</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="receipt-long" size={24} color="#849581" />
-          <Text style={styles.navText}>Orders</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="person" size={24} color="#849581" />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-
+      {/* Unified Brutal Bottom Navigation */}
+      <BrutalBottomNav currentTab="catalog" />
     </SafeAreaView>
   );
 }
@@ -218,291 +276,230 @@ export default function GlobalSearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#131313', // Using dark mode for consistency with rider app
+    backgroundColor: BrutalColors.canvas,
   },
-  header: {
-    flexDirection: 'row',
+  headerBtn: {
+    width: 36,
+    height: 36,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    height: 64,
-    backgroundColor: '#1c1b1b',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3b4b39',
-    zIndex: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_800ExtraBold',
-    color: '#00e554',
-    fontStyle: 'italic',
-    letterSpacing: -0.5,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
+    ...BrutalShadow.sm,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 100,
   },
-  searchSection: {
-    marginBottom: 32,
+  searchConsoleWrapper: {
+    marginBottom: 20,
   },
-  searchInputContainer: {
+  searchConsole: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1c1b1b',
-    borderRadius: 16,
-    height: 64,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  searchInputFocused: {
-    borderColor: '#00ff5f',
-  },
-  searchIcon: {
-    marginRight: 12,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    paddingHorizontal: 12,
+    height: 48,
+    gap: 8,
+    ...BrutalShadow.sm,
   },
   searchInput: {
     flex: 1,
-    height: '100%',
-    color: '#e5e2e1',
-    fontSize: 16,
-    fontFamily: 'Montserrat_400Regular',
+    fontSize: 11,
+    fontWeight: '800',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
-  micButton: {
-    padding: 8,
-    marginLeft: 8,
+  voiceMicBtn: {
+    backgroundColor: BrutalColors.yellow,
+    width: 32,
+    height: 32,
+    borderWidth: 1.5,
+    borderColor: BrutalColors.black,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   section: {
-    marginBottom: 40,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  sectionHeaderBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  sectionIcon: {
-    // optional alignment
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#e5e2e1',
+    fontSize: 12,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#666',
+    fontFamily: 'monospace',
+    marginTop: -6,
+    marginBottom: 12,
   },
   clearAllText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#00e554',
+    fontSize: 10,
+    fontWeight: '900',
+    color: BrutalColors.urgentRed,
+    fontFamily: 'monospace',
   },
-  tagsContainer: {
+  chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
-  tagButton: {
-    backgroundColor: '#2a2a2a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+  trendingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+    ...BrutalShadow.sm,
   },
-  tagText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#e5e2e1',
+  trendingChipText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
   recentList: {
     gap: 8,
   },
-  recentItem: {
+  recentCard: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1c1b1b',
-    padding: 16,
-    borderRadius: 12,
-  },
-  recentItemLeft: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    ...BrutalShadow.sm,
   },
-  recentItemText: {
-    fontSize: 16,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#e5e2e1',
+  recentQueryText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
-  bentoGrid: {
+  bentoContainer: {
     flexDirection: 'row',
-    height: 240,
     gap: 12,
+    height: 240,
   },
   bentoLarge: {
     flex: 1,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    ...BrutalShadow.sm,
     overflow: 'hidden',
   },
-  bentoRightColumn: {
+  bentoRightCol: {
     flex: 1,
     gap: 12,
   },
   bentoMedium: {
     flex: 1,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    ...BrutalShadow.sm,
     overflow: 'hidden',
   },
-  bentoSmallRow: {
+  bentoDualRow: {
     flex: 1,
     flexDirection: 'row',
     gap: 12,
   },
   bentoSmall: {
     flex: 1,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    ...BrutalShadow.sm,
     overflow: 'hidden',
   },
-  bentoImage: {
+  bentoBg: {
     width: '100%',
     height: '100%',
+    justifyContent: 'space-between',
+    padding: 10,
   },
-  bentoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  bentoBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: BrutalColors.terminalGreen,
+    borderWidth: 1.5,
+    borderColor: BrutalColors.black,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  bentoContentBottom: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+  bentoBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    color: BrutalColors.black,
+  },
+  bentoInfoBanner: {
+    backgroundColor: BrutalColors.white,
+    borderWidth: 1.5,
+    borderColor: BrutalColors.black,
+    padding: 6,
   },
   bentoTitleLarge: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#ffffff',
-  },
-  bentoSubtitle: {
     fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
+    fontWeight: '900',
+    color: BrutalColors.black,
   },
-  bentoContentCenterLeft: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 16,
-    justifyContent: 'center',
+  bentoSubLarge: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#666',
+    fontFamily: 'monospace',
+    marginTop: 2,
   },
   bentoTitleMedium: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    color: BrutalColors.black,
   },
-  bentoContentCenter: {
+  bentoColorCard: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 8,
+    gap: 4,
   },
   bentoTitleSmall: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#ffffff',
-    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
-  offerSection: {
-    marginTop: 16,
-  },
-  offerCard: {
-    backgroundColor: '#002106',
-    borderRadius: 16,
-    height: 160,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0,255,95,0.2)',
-  },
-  offerContent: {
-    flex: 2,
-    zIndex: 2,
+  offerBadge: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
   offerTitle: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#00e554',
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.5,
   },
   offerDesc: {
-    fontSize: 16,
-    fontFamily: 'Montserrat_400Regular',
-    color: 'rgba(255,255,255,0.9)',
-  },
-  offerIconWrapper: {
-    flex: 1,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -20,
-  },
-  offerIcon: {
-    transform: [{ rotate: '12deg' }],
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#1c1b1b',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#3b4b39',
-  },
-  navItem: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-  },
-  navItemActive: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 255, 95, 0.1)',
-    paddingHorizontal: 24,
-    paddingVertical: 6,
-    borderRadius: 24,
-  },
-  navText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#849581',
-    marginTop: 4,
-  },
-  navTextActive: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#00ff5f',
-    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600',
+    color: BrutalColors.black,
+    marginTop: 2,
   },
 });

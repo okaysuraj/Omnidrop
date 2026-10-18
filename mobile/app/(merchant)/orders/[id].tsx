@@ -1,180 +1,273 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Switch, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import type * as Models from '@/types';
+import { Ionicons } from '@expo/vector-icons';
 import Checkbox from 'expo-checkbox';
-import { api } from '../../../../src/lib/api';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+interface PackingItem {
+  id: string;
+  name: string;
+  quantity: number;
+  location: string;
+  image: string;
+  packed: boolean;
+}
 
 export default function PackingStatusScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const orderId = id as string;
 
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Models.Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
-  
+  const [actionLoading, setActionLoading] = useState(false);
+  const [items, setItems] = useState<PackingItem[]>([]);
+
   useEffect(() => {
     if (orderId) {
-      api.orders.byId(orderId).then(data => {
-        setOrder(data);
-        if (data.items) {
-          setItems(data.items.map((item: any) => ({
-            id: item.id,
-            name: item.product?.name || 'Item',
-            quantity: item.quantity,
-            location: 'Store Location',
-            image: item.product?.imageUrl,
-            packed: false,
-          })));
-        }
-      }).catch(e => console.error(e))
+      api.orders
+        .byId(orderId)
+        .then((data) => {
+          setOrder(data);
+          if (data.items) {
+            setItems(
+              data.items.map((item, idx: number) => ({
+                id: item.id || `item-${idx}`,
+                name: item.product?.name || item.name || 'Omnidrop SKU',
+                quantity: item.quantity || 1,
+                location: `BAY-${String.fromCharCode(65 + (idx % 4))} // AISLE ${String((idx % 8) + 1).padStart(2, '0')}`,
+                image:
+                  item.product?.images?.[0] ||
+                  'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200',
+                packed: false,
+              })),
+            );
+          }
+        })
+        .catch((e) => console.error(e))
         .finally(() => setLoading(false));
     }
   }, [orderId]);
-  
-  const [items, setItems] = useState<any[]>([]);
 
   const toggleItemPacked = (itemId: string) => {
-    setItems(items.map(item => 
-      item.id === itemId ? { ...item, packed: !item.packed } : item
-    ));
+    setItems(items.map((item) => (item.id === itemId ? { ...item, packed: !item.packed } : item)));
   };
 
-  const packedCount = items.filter(i => i.packed).length;
+  const packAllItems = () => {
+    setItems(items.map((item) => ({ ...item, packed: true })));
+  };
+
+  const packedCount = items.filter((i) => i.packed).length;
   const totalCount = items.length;
   const allPacked = totalCount > 0 && packedCount === totalCount;
+  const progressPercent = totalCount > 0 ? (packedCount / totalCount) * 100 : 0;
 
   const handleMarkReady = async () => {
+    setActionLoading(true);
     try {
-      await api.orders.updateStatus(orderId, 'READY');
+      await api.orders.updateStatus(orderId, 'READY_FOR_PICKUP');
       setIsReady(true);
-      router.back();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to update order status');
+      Alert.alert('PACKING COMPLETE', 'Tote sealed and ready for autonomous runner pickup.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert('PACKING ERROR', 'Failed to update order status');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#006e24" style={{ marginTop: 100 }} />;
+    return (
+      <View style={styles.centerLoading}>
+        <ActivityIndicator size="large" color={BrutalColors.black} />
+        <Text style={styles.loadingText}>LOADING ORDER MANIFEST...</Text>
+      </View>
+    );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      
-      {/* Top App Bar (Mobile) */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color="#006e24" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>OmniDrop Merchant</Text>
-        <View style={styles.profileContainer}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150' }} 
-            style={styles.profileImage}
+      <BrutalTelemetryStrip
+        left="OMNIDROP // FULFILLMENT STATION"
+        right={`PKG #${orderId?.slice(0, 8).toUpperCase()}`}
+      />
+
+      <BrutalHeader
+        title="PACK MANIFEST"
+        onBack={() => router.back()}
+        rightAction={
+          <BrutalBadge
+            label={order?.status || 'PACKING'}
+            variant={order?.status === 'READY_FOR_PICKUP' ? 'green' : 'yellow'}
           />
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView style={styles.mainContent} contentContainerStyle={styles.mainContentContainer}>
-        
-        {/* Header Section */}
-        <View style={styles.pageHeader}>
-          <View style={styles.titleSection}>
-            <Text style={styles.pageTitle}>Pack Order #{orderId?.slice(0,8).toUpperCase()}</Text>
-            <View style={styles.timeContainer}>
-              <MaterialIcons name="schedule" size={20} color="#575d78" />
-              <Text style={styles.pageSubtitle}>Due in 15 minutes</Text>
+        {/* Order Header Card */}
+        <BrutalCard bg={BrutalColors.white} style={{ marginBottom: 16 }}>
+          <View style={styles.orderTopRow}>
+            <View>
+              <Text style={styles.orderLabel}>DISPATCH TARGET</Text>
+              <Text style={styles.orderIdText}>#{orderId?.slice(0, 10).toUpperCase()}</Text>
+            </View>
+            <View style={styles.timerBadge}>
+              <Ionicons name="time-outline" size={14} color={BrutalColors.black} />
+              <Text style={styles.timerText}>SLA: 15 MIN</Text>
             </View>
           </View>
-          
-          {/* Ready for Pickup Toggle */}
-          <View style={styles.toggleContainer}>
-            <View>
-              <Text style={styles.toggleTitle}>Ready for Pickup</Text>
-              <Text style={styles.toggleSubtitle}>Notify driver order is packed</Text>
+
+          {/* Packing Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>PACKING PROGRESS</Text>
+              <Text style={styles.progressCount}>
+                {packedCount} OF {totalCount} LOADED
+              </Text>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+            </View>
+          </View>
+
+          {/* Toggle ready switch */}
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={styles.toggleTitle}>SEAL TOTE FOR RUNNER PICKUP</Text>
+              <Text style={styles.toggleSubtitle}>
+                Alerts courier flight radar that package is staged
+              </Text>
             </View>
             <Switch
-              trackColor={{ false: '#d9dadb', true: '#006e24' }}
-              thumbColor={'#ffffff'}
-              ios_backgroundColor="#d9dadb"
+              trackColor={{ false: '#E2E2DC', true: BrutalColors.terminalGreen }}
+              thumbColor={BrutalColors.black}
+              ios_backgroundColor="#E2E2DC"
               onValueChange={(val) => {
-                if (val) handleMarkReady();
+                if (val && allPacked) handleMarkReady();
               }}
-              value={isReady || order?.status === 'READY'}
-              disabled={!allPacked || order?.status === 'READY'}
+              value={isReady || order?.status === 'READY_FOR_PICKUP'}
+              disabled={!allPacked || order?.status === 'READY_FOR_PICKUP' || actionLoading}
             />
           </View>
-        </View>
+        </BrutalCard>
 
-        {/* Packing Checklist */}
-        <View style={styles.checklistCard}>
+        {/* Verification Checklist Card */}
+        <BrutalCard bg={BrutalColors.white} style={{ marginBottom: 20 }}>
           <View style={styles.checklistHeader}>
-            <Text style={styles.checklistTitle}>Items to Pack ({totalCount})</Text>
-            <View style={styles.packedBadge}>
-              <Text style={styles.packedBadgeText}>{packedCount}/{totalCount} Packed</Text>
+            <View>
+              <Text style={styles.sectionHeaderTitle}>VERIFICATION CHECKLIST</Text>
+              <Text style={styles.sectionSubtitle}>CONFIRM PHYSICALLY LOADED SKUs</Text>
             </View>
-          </View>
-          
-          <View style={styles.itemsList}>
-            {items.map(item => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={[styles.itemRow, item.packed && styles.itemRowPacked]}
-                onPress={() => toggleItemPacked(item.id)}
+            {!allPacked && totalCount > 0 && (
+              <TouchableOpacity
+                onPress={packAllItems}
                 activeOpacity={0.8}
+                style={styles.packAllBtn}
               >
-                <View style={styles.checkboxContainer}>
-                  <Checkbox
-                    value={item.packed}
-                    onValueChange={() => toggleItemPacked(item.id)}
-                    color={item.packed ? '#006e24' : undefined}
-                    style={styles.checkbox}
-                  />
-                </View>
-                
-                <View style={styles.itemImageContainer}>
-                  {item.image ? (
-                    <Image source={{ uri: item.image }} style={styles.itemImage} />
-                  ) : (
-                    <MaterialIcons name="egg" size={32} color="#6b7c68" />
-                  )}
-                </View>
-                
-                <View style={styles.itemDetails}>
-                  <View style={styles.itemNameContainer}>
-                    <Text style={[styles.itemName, item.packed && styles.itemNamePacked]}>{item.name}</Text>
-                    <Text style={styles.itemQuantity}>x{item.quantity}</Text>
-                  </View>
-                  <Text style={styles.itemLocation}>{item.location}</Text>
-                  
-                  {item.warning && (
-                    <View style={styles.warningContainer}>
-                      <MaterialIcons name="info" size={16} color="#ba1a1a" />
-                      <Text style={styles.warningText}>{item.warning}</Text>
-                    </View>
-                  )}
-                </View>
+                <Text style={styles.packAllBtnText}>PACK ALL</Text>
               </TouchableOpacity>
-            ))}
+            )}
+            {allPacked && <BrutalBadge label="VERIFIED 100%" variant="green" />}
           </View>
-        </View>
-        
-        {/* Action Button */}
-        <TouchableOpacity 
-          style={[styles.packButton, allPacked ? styles.packButtonActive : styles.packButtonDisabled]}
-          disabled={!allPacked || order?.status === 'READY'}
-          onPress={handleMarkReady}
-        >
-          <MaterialIcons name="inventory" size={24} color={allPacked ? '#ffffff' : '#5b617d'} />
-          <Text style={[styles.packButtonText, allPacked ? styles.packButtonTextActive : styles.packButtonTextDisabled]}>
-            Pack Order
-          </Text>
-        </TouchableOpacity>
-        
-      </ScrollView>
 
+          <View style={{ gap: 10 }}>
+            {items.map((item) => {
+              const isItemPacked = item.packed;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.itemCard, isItemPacked && styles.itemCardPacked]}
+                  onPress={() => toggleItemPacked(item.id)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.checkboxWrapper}>
+                    <Checkbox
+                      value={isItemPacked}
+                      onValueChange={() => toggleItemPacked(item.id)}
+                      color={isItemPacked ? BrutalColors.black : undefined}
+                      style={styles.checkbox}
+                    />
+                  </View>
+
+                  <View style={styles.itemImageContainer}>
+                    {item.image ? (
+                      <Image
+                        source={{ uri: item.image }}
+                        style={styles.itemImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons name="cube-outline" size={24} color={BrutalColors.black} />
+                    )}
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={[styles.itemName, isItemPacked && styles.itemNamePacked]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <View style={styles.qtyBadge}>
+                        <Text style={styles.qtyText}>×{item.quantity}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.locationChip}>
+                      <Ionicons name="scan-outline" size={11} color={BrutalColors.black} />
+                      <Text style={styles.locationCode}>{item.location}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </BrutalCard>
+
+        {/* Complete Packing Action */}
+        <BrutalButton
+          title={
+            allPacked
+              ? 'CONFIRM PACK & NOTIFY RUNNER ✓'
+              : `CHECK ALL SKUs (${packedCount}/${totalCount} PACKED)`
+          }
+          variant={allPacked ? 'green' : 'black'}
+          disabled={!allPacked || order?.status === 'READY_FOR_PICKUP'}
+          loading={actionLoading}
+          onPress={handleMarkReady}
+          size="lg"
+          fullWidth
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -182,234 +275,224 @@ export default function PackingStatusScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BrutalColors.canvas,
   },
-  header: {
-    flexDirection: 'row',
+  centerLoading: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    height: 64,
-    backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: BrutalColors.canvas,
+    gap: 12,
   },
-  menuButton: {
-    padding: 8,
-    borderRadius: 20,
-    marginLeft: -8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#006e24',
-    fontFamily: 'Montserrat_800ExtraBold',
-  },
-  profileContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#e1e3e4',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
+  loadingText: {
+    fontSize: 10,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    color: BrutalColors.black,
   },
   mainContent: {
     flex: 1,
   },
   mainContentContainer: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
-  pageHeader: {
-    marginBottom: 24,
+  orderTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  titleSection: {
-    marginBottom: 20,
+  orderLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#666',
+    letterSpacing: 1.2,
+    fontFamily: 'monospace',
   },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#191c1d',
-    marginBottom: 8,
-    fontFamily: 'Montserrat_800ExtraBold',
+  orderIdText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: -0.5,
   },
-  timeContainer: {
+  timerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    backgroundColor: BrutalColors.yellow,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    ...BrutalShadow.sm,
   },
-  pageSubtitle: {
-    fontSize: 16,
-    color: '#575d78',
+  timerText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    fontFamily: 'monospace',
   },
-  toggleContainer: {
+  progressContainer: {
+    backgroundColor: BrutalColors.canvas,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    padding: 10,
+    marginBottom: 12,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  progressLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    color: BrutalColors.black,
+  },
+  progressCount: {
+    fontSize: 9,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    color: BrutalColors.black,
+  },
+  progressBarTrack: {
+    height: 8,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 1.5,
+    borderColor: BrutalColors.black,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: BrutalColors.terminalGreen,
+  },
+  toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f3f4f5',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: '#F2F2EE',
+    padding: 12,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
   },
   toggleTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#191c1d',
+    fontSize: 12,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.5,
   },
   toggleSubtitle: {
-    fontSize: 14,
-    color: '#5b617d',
+    fontSize: 11,
+    color: '#555',
     marginTop: 2,
-  },
-  checklistCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#0e1736',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 4,
-    marginBottom: 24,
   },
   checklistHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#edeeef',
-    paddingBottom: 16,
-    marginBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: BrutalColors.black,
+    paddingBottom: 12,
+    marginBottom: 14,
   },
-  checklistTitle: {
-    fontSize: 20,
+  sectionHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#191c1d',
-    fontFamily: 'Montserrat_700Bold',
+    color: '#666',
+    fontFamily: 'monospace',
+    marginTop: 2,
   },
-  packedBadge: {
-    backgroundColor: '#d8defe',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
+  packAllBtn: {
+    backgroundColor: BrutalColors.yellow,
+    borderWidth: 1.5,
+    borderColor: BrutalColors.black,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    ...BrutalShadow.sm,
   },
-  packedBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#5b617d',
+  packAllBtnText: {
+    fontSize: 10,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    color: BrutalColors.black,
   },
-  itemsList: {
-    gap: 16,
-  },
-  itemRow: {
+  itemCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#edeeef',
-    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    gap: 12,
   },
-  itemRowPacked: {
-    borderColor: 'rgba(0,110,36,0.3)',
-    backgroundColor: '#ffffff',
+  itemCardPacked: {
+    backgroundColor: '#E8FBF1',
   },
-  checkboxContainer: {
-    paddingTop: 4,
+  checkboxWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 0,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
   },
   itemImageContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f5',
-    overflow: 'hidden',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    backgroundColor: BrutalColors.canvas,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
     justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   itemImage: {
     width: '100%',
     height: '100%',
   },
-  itemDetails: {
-    flex: 1,
-  },
-  itemNameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
   itemName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#191c1d',
+    fontSize: 13,
+    fontWeight: '800',
+    color: BrutalColors.black,
     flex: 1,
-    marginRight: 8,
   },
   itemNamePacked: {
-    color: '#006e24',
+    textDecorationLine: 'line-through',
+    color: '#666',
   },
-  itemQuantity: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#191c1d',
+  qtyBadge: {
+    backgroundColor: BrutalColors.black,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  itemLocation: {
-    fontSize: 14,
-    color: '#3b4b39',
+  qtyText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BrutalColors.white,
+    fontFamily: 'monospace',
   },
-  warningContainer: {
+  locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: 4,
   },
-  warningText: {
-    fontSize: 14,
-    color: '#ba1a1a',
-  },
-  packButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  packButtonDisabled: {
-    backgroundColor: '#d9dadb',
-    opacity: 0.7,
-  },
-  packButtonActive: {
-    backgroundColor: '#006e24',
-    shadowColor: '#006e24',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.39,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  packButtonText: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    fontWeight: '700',
-  },
-  packButtonTextDisabled: {
-    color: '#3b4b39',
-  },
-  packButtonTextActive: {
-    color: '#ffffff',
+  locationCode: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#666',
+    fontFamily: 'monospace',
   },
 });

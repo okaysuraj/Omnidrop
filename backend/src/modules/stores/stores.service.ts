@@ -1,13 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Store } from '../../database/entities';
-import { CreateStoreDto, UpdateStoreDto, NearbyStoresQueryDto } from './dto/store.dto';
+import { CreateStoreDto, NearbyStoresQueryDto, UpdateStoreDto } from './dto/store.dto';
 
 @Injectable()
 export class StoresService {
-  private readonly logger = new Logger(StoresService.name);
-
   constructor(
     @InjectRepository(Store)
     private storeRepository: Repository<Store>,
@@ -21,34 +19,46 @@ export class StoresService {
     });
 
     await this.storeRepository.save(store);
-    this.logger.log(`Store created: ${store.name} by owner ${ownerId}`);
+
     return store;
   }
 
   async findNearby(query: NearbyStoresQueryDto) {
     const { lat, lng, radius = 10 } = query;
 
-    // Haversine formula in SQL for distance calculation
+    // Pre-filter bounding box to leverage PostgreSQL B-tree indices on lat and lng
+    const latDelta = radius / 111.0;
+    const lngDelta = radius / (111.0 * Math.cos((lat * Math.PI) / 180));
+    const minLat = lat - latDelta;
+    const maxLat = lat + latDelta;
+    const minLng = lng - lngDelta;
+    const maxLng = lng + lngDelta;
+
+    // Haversine formula in SQL for exact distance calculation
     const stores = await this.storeRepository
       .createQueryBuilder('store')
       .addSelect(
-        `(6371 * acos(cos(radians(:lat)) * cos(radians(store.lat)) * cos(radians(store.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(store.lat))))`,
+        `(6371 * acos(least(1.0, greatest(-1.0, cos(radians(:lat)) * cos(radians(store.lat)) * cos(radians(store.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(store.lat))))))`,
         'distance',
       )
       .where('store.is_active = :isActive', { isActive: true })
       .andWhere('store.is_verified = :isVerified', { isVerified: true })
-      .having(
-        `(6371 * acos(cos(radians(:lat)) * cos(radians(store.lat)) * cos(radians(store.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(store.lat)))) < :radius`,
+      .andWhere('store.lat BETWEEN :minLat AND :maxLat', { minLat, maxLat })
+      .andWhere('store.lng BETWEEN :minLng AND :maxLng', { minLng, maxLng })
+      .andWhere(
+        `(6371 * acos(least(1.0, greatest(-1.0, cos(radians(:lat)) * cos(radians(store.lat)) * cos(radians(store.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(store.lat)))))) < :radius`,
       )
       .setParameters({ lat, lng, radius })
       .orderBy('distance', 'ASC')
-      .groupBy('store.id')
-      .getRawAndEntities();
+      .getRawAndEntities<{ distance: string }>();
 
     return stores.entities.map((store, index) => ({
       ...store,
       distance: parseFloat(stores.raw[index]?.distance || '0'),
-      estimatedDeliveryMinutes: Math.max(10, Math.round(parseFloat(stores.raw[index]?.distance || '0') * 6)),
+      estimatedDeliveryMinutes: Math.max(
+        10,
+        Math.round(parseFloat(stores.raw[index]?.distance || '0') * 6),
+      ),
       isOpen: this.isStoreOpen(store),
     }));
   }

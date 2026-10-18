@@ -1,144 +1,364 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/providers/auth-provider';
+import { BrutalFooter } from '@/components/shared/brutal-footer';
+import { BrutalNav } from '@/components/shared/brutal-nav';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
+import { Check, Loader2, Package, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 
-export default function ProductDiscoveryPage() {
-  const { user, logout } = useAuth();
+async function fetchCatalog(
+  storeId: string,
+  categoryId: string,
+  search: string,
+): Promise<Models.Product[]> {
+  if (storeId) {
+    const inventory = await api.inventory.byStore(storeId, categoryId || undefined);
+    return inventory.flatMap((item) =>
+      item.product
+        ? [{ ...item.product, sellingPrice: item.priceOverride ?? item.product.sellingPrice }]
+        : [],
+    );
+  }
+  const result = await api.products.list({
+    categoryId: categoryId || undefined,
+    search: search || undefined,
+  });
+  return result.items;
+}
+
+function ProductDiscoveryContent() {
   const searchParams = useSearchParams();
-  const categoryId = searchParams.get('categoryId');
-  const [products, setProducts] = useState<any[]>([]);
+  const initialCategory = searchParams.get('categoryId') || '';
+  const initialSearch = searchParams.get('search') || '';
+  const requestedStoreId = searchParams.get('storeId') || '';
+
+  const [categories, setCategories] = useState<Models.Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [appliedSearch, setAppliedSearch] = useState(initialSearch);
+  const [products, setProducts] = useState<Models.Product[]>([]);
+  const [stores, setStores] = useState<Models.StoreWithDistance[]>([]);
+  const [selectedStore, setSelectedStore] = useState<Models.Store | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const initData = async () => {
       try {
-        const res = await api.products.search('') as any[];
-        // Mock filtering by category for now
-        setProducts(res || []);
+        const [cats, nearbyStores] = await Promise.all([
+          api.products.categories().catch(() => []),
+          api.stores.nearby(28.6139, 77.209, 20).catch(() => []),
+        ]);
+        setCategories(cats);
+        const storeList = nearbyStores;
+        setStores(storeList);
+
+        if (requestedStoreId) {
+          try {
+            const storeData = await api.stores.getById(requestedStoreId);
+            setSelectedStore(storeData);
+          } catch {
+            const found = storeList.find((s) => s.id === requestedStoreId);
+            if (found) setSelectedStore(found);
+          }
+        }
       } catch {
-        setProducts([]);
+        /* ignore */
       }
-      setLoading(false);
     };
-    loadProducts();
-  }, [categoryId]);
+    initData();
+  }, [requestedStoreId]);
+
+  useEffect(() => {
+    let active = true;
+    fetchCatalog(requestedStoreId, selectedCategory, appliedSearch)
+      .then((items) => {
+        if (active) setProducts(items);
+      })
+      .catch(() => {
+        if (active) setProducts([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedCategory, requestedStoreId, appliedSearch]);
+
+  const handleAddToCart = async (product: Models.Product) => {
+    setAddingId(product.id);
+    try {
+      const storeId =
+        requestedStoreId ||
+        product.inventory?.[0]?.storeId ||
+        (stores.length > 0 ? stores[0].id : null);
+      if (!storeId) {
+        alert('No store available to fulfill this item right now.');
+        return;
+      }
+      await api.cart.addItem(storeId, product.id, 1);
+      setSuccessToast(`Added ${product.name} to Tote`);
+      setTimeout(() => setSuccessToast(null), 3000);
+    } catch (err) {
+      alert(getErrorMessage(err) || 'Could not add to cart');
+    } finally {
+      setAddingId(null);
+    }
+  };
 
   return (
-    <div className="bg-background selection:bg-primary-container selection:text-on-primary-container min-h-screen text-on-surface">
-      {/* Top Navigation Bar */}
-      <header className="bg-surface border-b border-outline-variant w-full top-0 sticky z-50 shadow-sm flex items-center justify-between px-margin-mobile md:px-margin-desktop py-4 max-w-[1440px] mx-auto">
-        <div className="flex items-center gap-6">
-          <Link href="/explore" className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>rocket_launch</span>
-            <h1 className="font-headline-md text-headline-md font-bold text-primary">OmniDrop</h1>
-          </Link>
-        </div>
-        
-        <div className="hidden md:flex flex-1 max-w-xl mx-8 relative">
-          <input className="w-full bg-surface-container-low border-none rounded-full py-base pl-12 pr-md focus:ring-2 focus:ring-primary-container font-body-sm text-body-sm outline-none text-on-surface" placeholder="Search for fresh items..." type="text"/>
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-        </div>
-        
-        <div className="flex items-center gap-md">
-          <Link href="/cart" className="flex items-center gap-xs px-sm py-xs bg-primary-container text-on-primary-container rounded-full active:scale-95 transition-transform font-label-bold text-label-bold cursor-pointer">
-            <span className="material-symbols-outlined">shopping_cart</span>
-            <span>Cart</span>
-          </Link>
-          <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center font-bold overflow-hidden border-2 border-primary-container cursor-pointer text-on-secondary-container">
-            {user?.fullName?.[0]?.toUpperCase()}
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+      <BrutalNav />
+
+      {/* Floating success toast */}
+      {successToast && (
+        <div className="fixed top-20 right-5 z-50 animate-bounce">
+          <div className="bg-[#00E599] text-black border-2 border-black p-3 font-tech text-xs font-bold shadow-[4px_4px_0px_#000] flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            <span>{successToast}</span>
           </div>
         </div>
-      </header>
+      )}
 
-      <main className="flex-1 mt-8 flex px-margin-mobile md:px-xl py-lg gap-xl max-w-[1440px] mx-auto w-full">
-        {/* Sidebar Filters */}
-        <aside className="w-64 flex-shrink-0 hidden lg:block sticky top-28 h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar">
-          <h2 className="font-headline-md text-headline-md mb-md text-on-surface">Filters</h2>
-          <div className="space-y-lg">
-            {/* Categories */}
-            <section>
-              <h3 className="font-label-bold text-label-bold text-secondary mb-sm uppercase tracking-wider">Categories</h3>
-              <div className="space-y-xs">
-                {['Organic Produce', 'Dairy & Eggs', 'Bakery', 'Meat & Seafood', 'Pantry Staples'].map((cat, i) => (
-                  <label key={i} className="flex items-center gap-xs cursor-pointer group">
-                    <input defaultChecked={i===0} className="rounded border-outline text-primary focus:ring-primary w-4 h-4" type="checkbox"/>
-                    <span className="font-body-sm text-body-sm group-hover:text-primary text-on-surface">{cat}</span>
-                  </label>
-                ))}
+      <main className="container-brutal py-8 sm:py-12 space-y-8">
+        {/* Active Store Indicator */}
+        {selectedStore && (
+          <div className="bg-[#FFE600] border-2 border-black p-4 shadow-[4px_4px_0px_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-display font-black text-sm uppercase">
+                HUB
               </div>
-            </section>
-            {/* Price Range */}
-            <section>
-              <h3 className="font-label-bold text-label-bold text-secondary mb-sm uppercase tracking-wider">Price Range</h3>
-              <input className="w-full h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" type="range"/>
-              <div className="flex justify-between mt-xs font-body-sm text-body-sm text-on-surface-variant">
-                <span>$0</span>
-                <span>$500+</span>
-              </div>
-            </section>
-            {/* Delivery Speed */}
-            <section>
-              <h3 className="font-label-bold text-label-bold text-secondary mb-sm uppercase tracking-wider">Delivery</h3>
-              <div className="flex flex-wrap gap-xs">
-                <button className="px-sm py-base rounded-full bg-primary text-on-primary font-label-bold text-label-bold shadow-sm">Instant</button>
-                <button className="px-sm py-base rounded-full border border-outline text-on-surface hover:border-primary font-label-bold text-label-bold transition-colors">Today</button>
-              </div>
-            </section>
-          </div>
-        </aside>
-
-        {/* Product Grid */}
-        <section className="flex-1">
-          <div className="flex flex-col md:flex-row justify-between md:items-end mb-lg gap-4">
-            <div>
-              <h1 className="font-headline-lg text-headline-lg text-on-surface">Fresh Catalog</h1>
-              <p className="font-body-md text-body-md text-on-surface-variant">Showing {products.length || 248} products</p>
-            </div>
-            <div className="flex items-center gap-sm">
-              <span className="font-label-bold text-label-bold text-secondary">Sort by:</span>
-              <select className="bg-surface border-none font-body-sm text-body-sm focus:ring-0 cursor-pointer text-primary font-bold">
-                <option>Most Popular</option>
-                <option>Price: Low to High</option>
-                <option>Price: High to Low</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">
-            {(products.length > 0 ? products : [1,2,3,4,5,6]).map((product: any, idx) => (
-              <div key={product.id || idx} className={`product-card cursor-pointer group relative bg-surface-container-lowest rounded-xl shadow-sm hover:shadow-xl overflow-hidden border border-transparent hover:border-primary-container transition-all ${idx === 0 ? 'md:col-span-2 xl:col-span-2' : ''}`}>
-                <div className={`flex ${idx === 0 ? 'h-full flex-row' : 'flex-col'}`}>
-                  <div className={`${idx === 0 ? 'w-3/5' : 'h-48'} relative overflow-hidden bg-surface-container`}>
-                    <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800" />
-                    {idx === 0 && <div className="absolute top-4 left-4 bg-primary text-on-primary px-3 py-1 rounded-full font-label-bold text-label-bold text-xs uppercase tracking-wider">Bestseller</div>}
-                  </div>
-                  <div className={`${idx === 0 ? 'w-2/5 p-lg flex flex-col justify-center bg-surface-container-low' : 'p-md bg-surface-container-low flex flex-col gap-2'}`}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-headline-md text-headline-md text-on-surface mb-1">{product.name || 'Organic Premium Avocado'}</h3>
-                        <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">{idx === 0 ? 'Directly from sun-drenched orchards. Rich, creamy texture perfect for toasts and salads.' : 'Fresh and organic'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex flex-col">
-                        <span className="font-headline-md text-headline-md text-primary font-black">${product.sellingPrice || '6.99'}</span>
-                        <span className="font-label-md text-label-md text-secondary line-through">${product.mrp || '8.99'}</span>
-                      </div>
-                      <button className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-fixed-variant active:scale-90 transition-transform shadow-md">
-                        <span className="material-symbols-outlined">add_shopping_cart</span>
-                      </button>
-                    </div>
-                  </div>
+              <div>
+                <div className="font-tech text-[10px] uppercase font-bold tracking-wider text-black/70">
+                  {'// FULFILLING MICRO-HUB'}
+                </div>
+                <div className="font-display font-black text-base uppercase text-black">
+                  {selectedStore.name}
+                </div>
+                <div className="font-sans text-xs text-neutral-800">
+                  {selectedStore.address || 'Hyperlocal Hub'} · {selectedStore.rating || '4.9'} ★
+                  Rating
                 </div>
               </div>
-            ))}
+            </div>
+            <Link
+              href="/products"
+              className="btn-brutal-white !h-8 !py-0 !px-3 font-tech text-xs uppercase font-bold inline-flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              Show All Hubs
+            </Link>
           </div>
-        </section>
+        )}
+
+        {/* Header Title & Filter Bar */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b-2 border-black">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
+              {'// LIVE INVENTORY SHELVES'}
+            </div>
+            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+              Direct Shelf Catalog
+            </h1>
+            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+              Zero markup groceries, sourdoughs, and dairy with dual-scan shelf accuracy.
+            </p>
+          </div>
+
+          {/* Search box */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery !== appliedSearch) {
+                setLoading(true);
+                setAppliedSearch(searchQuery);
+              }
+            }}
+            className="w-full md:w-80 flex gap-2"
+          >
+            <div className="relative flex-1">
+              <input
+                type="text"
+                className="input-brutal pr-9"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="w-4 h-4 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            <button
+              type="submit"
+              className="btn-brutal-yellow !h-auto !py-0 !px-4 text-xs font-bold uppercase"
+            >
+              Find
+            </button>
+          </form>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex flex-wrap gap-2.5 items-center pb-2">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('')}
+            className={`px-4 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+              !selectedCategory
+                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000] translate-x-0.5'
+                : 'bg-white text-neutral-800 hover:bg-[#FAFAF8] shadow-[2px_2px_0px_#000]'
+            }`}
+          >
+            All Items ({products.length})
+          </button>
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(isSelected ? '' : cat.id)}
+                className={`px-3.5 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+                  isSelected
+                    ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000] translate-x-0.5'
+                    : 'bg-white text-neutral-800 hover:bg-[#FAFAF8] shadow-[2px_2px_0px_#000]'
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Products Grid */}
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-3 font-tech text-xs">
+            <Loader2 className="w-8 h-8 animate-spin text-black" />
+            <span className="font-bold uppercase tracking-wider">
+              SYNCING RFID SHELF METRICS...
+            </span>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="card-brutal p-12 text-center bg-white">
+            <Package className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
+            <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+              No Items Match Filter Criteria
+            </h3>
+            <p className="font-sans text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
+              Reset search query or select another category aisle.
+            </p>
+            <button
+              onClick={() => {
+                setSelectedCategory('');
+                setSearchQuery('');
+                setAppliedSearch('');
+              }}
+              className="btn-brutal-yellow !h-10 !px-5 text-xs font-bold uppercase mt-4"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product) => {
+              const image =
+                product.images?.[0] ||
+                'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80';
+              return (
+                <div
+                  key={product.id}
+                  className="card-brutal bg-white p-4 flex flex-col justify-between space-y-3"
+                >
+                  <div>
+                    {/* Top Tag & Category */}
+                    <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-2.5 font-tech text-[10px] font-bold">
+                      <span className="bg-[#FFE600] px-1.5 py-0.2 border border-black uppercase text-black">
+                        {product.category?.name || 'FRESH SHELF'}
+                      </span>
+                      <span className="text-neutral-500 uppercase">
+                        {product.weight || product.unit || 'Standard'}
+                      </span>
+                    </div>
+
+                    {/* Image Container */}
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="block relative aspect-[4/3] w-full border-2 border-black overflow-hidden mb-3 bg-neutral-100 hover:opacity-95 transition-opacity"
+                    >
+                      <img src={image} alt={product.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-2 left-2 bg-black text-white font-tech text-[9px] px-1.5 py-0.5 uppercase font-bold">
+                        STOCK: IN HUB
+                      </div>
+                    </Link>
+
+                    {/* Title & Description */}
+                    <Link href={`/products/${product.id}`} className="hover:underline">
+                      <h3 className="font-display font-black text-base uppercase text-neutral-900 leading-snug line-clamp-2">
+                        {product.name}
+                      </h3>
+                    </Link>
+                    <p className="font-sans text-xs text-neutral-600 font-medium line-clamp-2 mt-1">
+                      {product.description ||
+                        'Verified grade A local farm product with 100% shelf freshness inspection.'}
+                    </p>
+                  </div>
+
+                  {/* Price Bar & Add Action */}
+                  <div className="pt-3 border-t-2 border-black flex items-center justify-between gap-2">
+                    <div>
+                      <div className="font-tech font-black text-xl text-neutral-900 tracking-tight leading-none">
+                        ₹{Number(product.sellingPrice).toFixed(2)}
+                      </div>
+                      {product.mrp && Number(product.mrp) > Number(product.sellingPrice) && (
+                        <span className="font-tech text-[10px] text-neutral-400 line-through">
+                          ₹{Number(product.mrp).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCart(product)}
+                      disabled={addingId === product.id}
+                      className="btn-brutal-yellow !h-9 !py-0 !px-3 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5"
+                    >
+                      {addingId === product.id ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>TOTE...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>ADD TO TOTE</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
+
+      <BrutalFooter />
     </div>
+  );
+}
+
+export default function ProductDiscoveryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center font-tech text-xs font-bold">
+          <span>INITIALIZING CATALOG KERNEL...</span>
+        </div>
+      }
+    >
+      <ProductDiscoveryContent />
+    </Suspense>
   );
 }

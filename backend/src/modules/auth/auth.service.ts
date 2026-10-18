@@ -1,11 +1,17 @@
-import { Injectable, ConflictException, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
 import { Repository } from 'typeorm';
-import * as admin from 'firebase-admin';
-import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
-import { User } from '../../database/entities';
 import { UserRole } from '../../common/enums';
-import { RegisterDto, UpdateProfileDto } from './dto/auth.dto';
+import { getErrorMessage } from '../../common/errors';
+import { User } from '../../database/entities';
+import { RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -40,7 +46,6 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
-    this.logger.log(`User registered: ${user.email} (${user.role})`);
 
     return this.sanitizeUser(user);
   }
@@ -85,15 +90,20 @@ export class AuthService {
   async updateProfile(userId: string, data: Partial<User>) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    
+
     // Only allow specific fields
-    const allowedUpdates = ['fullName', 'phone', 'avatarUrl', 'currentLat', 'currentLng', 'fcmToken'] as const;
-    const updateData: Partial<User> = {};
+    const allowedUpdates = [
+      'fullName',
+      'phone',
+      'avatarUrl',
+      'currentLat',
+      'currentLng',
+      'fcmToken',
+    ] as const;
     for (const key of allowedUpdates) {
-      if (data[key] !== undefined) (updateData as any)[key] = data[key];
+      if (data[key] !== undefined) Object.assign(user, { [key]: data[key] });
     }
 
-    Object.assign(user, updateData);
     await this.userRepository.save(user);
     return this.sanitizeUser(user);
   }
@@ -102,13 +112,14 @@ export class AuthService {
     try {
       return await getAuth().verifyIdToken(token);
     } catch (error) {
-      this.logger.error(`Firebase token verification failed: ${error.message}`);
+      this.logger.error(`Firebase token verification failed: ${getErrorMessage(error)}`);
       throw new UnauthorizedException('Invalid Firebase token');
     }
   }
 
   private sanitizeUser(user: User) {
-    const { deletedAt, ...sanitized } = user;
+    const sanitized: Omit<User, 'deletedAt'> & { deletedAt?: Date } = { ...user };
+    delete sanitized.deletedAt;
     return sanitized;
   }
 }

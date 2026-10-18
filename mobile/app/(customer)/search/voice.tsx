@@ -1,8 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VoiceSearchScreen() {
   const router = useRouter();
@@ -10,137 +18,132 @@ export default function VoiceSearchScreen() {
   const [promptIndex, setPromptIndex] = useState(0);
 
   const prompts = [
-    'Try saying "Order milk and eggs"',
-    'Try saying "Is my sushi on its way?"',
-    'Try saying "Find the nearest grocery store"',
-    'Try saying "Reorder my last meal"'
+    'TRY SAYING: "ORDER MILK, BREAD AND EGGS"',
+    'TRY SAYING: "TRACK ACTIVE DRONE SHIPMENT"',
+    'TRY SAYING: "NEAREST 10-MIN GROCERY HUB"',
+    'TRY SAYING: "REORDER LAST BASKET MANIFEST"',
   ];
 
   useEffect(() => {
-    // Pulse animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: 1400,
           useNativeDriver: true,
         }),
-      ])
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ]),
     ).start();
 
-    // Prompt rotation
     const interval = setInterval(() => {
       setPromptIndex((prev) => (prev + 1) % prompts.length);
-    }, 4000);
+    }, 3500);
 
     return () => clearInterval(interval);
   }, []);
 
   const scale = pulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.8, 1.2, 1.4],
-  });
-
-  const opacity = pulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.8, 0.3, 0],
+    inputRange: [0, 1],
+    outputRange: [1, 1.15],
   });
 
   const handleMicPress = () => {
-    // Simulate finishing voice recording and searching
-    router.replace({ pathname: '/(customer)/search/results', params: { q: 'Organic Groceries' } });
+    router.replace({
+      pathname: '/(customer)/search/results',
+      params: { q: 'Organic Produce' },
+    });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      
-      {/* Top App Bar */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialIcons name="bolt" size={28} color="#00e554" />
-          <Text style={styles.headerTitle}>OmniDrop</Text>
-        </View>
-        <TouchableOpacity style={styles.iconButton}>
-          <MaterialIcons name="shopping-cart" size={24} color="#b9ccb5" />
-        </TouchableOpacity>
-      </View>
+      <BrutalTelemetryStrip
+        left="VOICE RADAR // SPEECH-TO-TELEMETRY"
+        right="AUDIO-STREAM: ACTIVE"
+      />
+
+      <BrutalHeader
+        title="Voice Radar"
+        subtitle="Speech Search Engine"
+        onBack={() => router.back()}
+        rightAction={<BrutalBadge label="LISTEN" variant="green" />}
+      />
 
       <View style={styles.mainContent}>
-        
-        {/* Ambient Gradient Background - simulated with simple view since no native radial gradient without extra library */}
-        <View style={styles.ambientGlow} />
+        {/* Radar Wave Station */}
+        <View style={styles.micStation}>
+          <Animated.View style={[styles.pulseCircle, { transform: [{ scale }] }]} />
 
-        {/* Exit Action */}
-        <TouchableOpacity style={styles.exitButton} onPress={() => router.back()}>
-          <MaterialIcons name="close" size={24} color="#e5e2e1" />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.micButton} onPress={handleMicPress} activeOpacity={0.8}>
+            <MaterialIcons name="mic" size={48} color={BrutalColors.black} />
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.voiceCore}>
-          
-          {/* Animated Microphone Hub */}
-          <View style={styles.micHub}>
-            <Animated.View style={[styles.pulseRing, { transform: [{ scale }], opacity }]} />
-            <Animated.View style={[styles.pulseRing, { transform: [{ scale }], opacity: opacity, animationDelay: '500ms' } as any]} />
-            <Animated.View style={[styles.pulseRing, { transform: [{ scale }], opacity: opacity, animationDelay: '1000ms' } as any]} />
-            
-            <TouchableOpacity style={styles.micButton} onPress={handleMicPress} activeOpacity={0.8}>
-              <MaterialIcons name="mic" size={64} color="#ffffff" />
-            </TouchableOpacity>
+        {/* Listening Status & Frequency Meters */}
+        <View style={styles.statusBox}>
+          <Text style={styles.statusTitle}>LISTENING FOR INSTRUCTION...</Text>
+          <View style={styles.frequencyMeters}>
+            {[24, 40, 16, 32, 48, 20, 36, 12].map((height, idx) => (
+              <View key={idx} style={[styles.freqBar, { height }]} />
+            ))}
           </View>
+        </View>
 
-          {/* Listening Text */}
-          <View style={styles.listeningContainer}>
-            <Text style={styles.listeningText}>Listening...</Text>
-            <View style={styles.voiceBars}>
-              {[1, 2, 3, 4, 5].map((_, i) => (
-                <View key={i} style={[styles.voiceBar, { height: 12 + Math.random() * 20 }]} />
-              ))}
-            </View>
-          </View>
+        {/* Dynamic Prompts Box */}
+        <BrutalCard
+          bg={BrutalColors.yellow}
+          style={{ width: '100%', marginBottom: 16, padding: 14 }}
+        >
+          <Text style={styles.promptHeader}>VOICE SYNTAX PROMPT</Text>
+          <Text style={styles.promptText}>{prompts[promptIndex]}</Text>
+        </BrutalCard>
 
-          {/* Prompts & Suggestions */}
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.promptText}>{prompts[promptIndex]}</Text>
-            
-            <View style={styles.suggestionsGrid}>
-              <TouchableOpacity style={styles.suggestionCard} onPress={() => handleMicPress()}>
-                <MaterialIcons name="local-shipping" size={24} color="#00e554" style={styles.suggestionIcon} />
-                <Text style={styles.suggestionText}>Track order</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.suggestionCard} onPress={() => handleMicPress()}>
-                <MaterialIcons name="restaurant" size={24} color="#00e554" style={styles.suggestionIcon} />
-                <Text style={styles.suggestionText}>Nearby food</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        {/* Quick Voice Shortcuts */}
+        <View style={styles.shortcutsGrid}>
+          <TouchableOpacity
+            style={styles.shortcutBtn}
+            onPress={() =>
+              router.push({
+                pathname: '/(customer)/search/results',
+                params: { q: 'Track Order' },
+              })
+            }
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="navigation" size={20} color={BrutalColors.black} />
+            <Text style={styles.shortcutText}>TRACK ACTIVE SHIPMENT</Text>
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.shortcutBtn}
+            onPress={() =>
+              router.push({
+                pathname: '/(customer)/search/results',
+                params: { q: 'Fresh Bakery' },
+              })
+            }
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="restaurant" size={20} color={BrutalColors.black} />
+            <Text style={styles.shortcutText}>SCAN LOCAL HUBS</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Cancel / Return */}
+        <View style={{ width: '100%', marginTop: 20 }}>
+          <BrutalButton
+            title="CANCEL VOICE SCAN"
+            variant="white"
+            onPress={() => router.back()}
+            size="md"
+            fullWidth
+          />
         </View>
       </View>
-
-      {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/(customer)/home')}>
-          <MaterialIcons name="home" size={24} color="#849581" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItemActive}>
-          <MaterialIcons name="search" size={24} color="#00ff5f" />
-          <Text style={styles.navTextActive}>Explore</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="receipt-long" size={24} color="#849581" />
-          <Text style={styles.navText}>Orders</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="person" size={24} color="#849581" />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-
     </SafeAreaView>
   );
 }
@@ -148,183 +151,93 @@ export default function VoiceSearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#131313', // Using dark theme as requested for other screens, even though HTML says light, dark looks better for voice search overlay
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    height: 64,
-    backgroundColor: '#1c1b1b',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3b4b39',
-    zIndex: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_800ExtraBold',
-    color: '#00e554',
-    fontStyle: 'italic',
-    letterSpacing: -0.5,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
+    backgroundColor: BrutalColors.canvas,
   },
   mainContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  ambientGlow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(0, 255, 95, 0.1)',
-    top: '30%',
-  },
-  exitButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    padding: 12,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 24,
-    zIndex: 20,
-  },
-  voiceCore: {
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 400,
-    gap: 48,
-    zIndex: 10,
-  },
-  micHub: {
+  micStation: {
     position: 'relative',
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
     width: 160,
     height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(0, 255, 95, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  pulseCircle: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    backgroundColor: BrutalColors.yellow,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
   },
   micButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#006e24',
-    alignItems: 'center',
+    width: 96,
+    height: 96,
+    backgroundColor: BrutalColors.green,
+    borderWidth: 3,
+    borderColor: BrutalColors.black,
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#006e24',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-  },
-  listeningContainer: {
     alignItems: 'center',
-    gap: 8,
+    ...BrutalShadow.lg,
   },
-  listeningText: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#e5e2e1',
-    letterSpacing: -0.5,
+  statusBox: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  voiceBars: {
+  statusTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  frequencyMeters: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 32,
+    height: 48,
     gap: 6,
   },
-  voiceBar: {
-    width: 4,
-    backgroundColor: '#00ff5f',
-    borderRadius: 2,
-  },
-  suggestionsContainer: {
-    width: '100%',
-    gap: 24,
-    marginTop: 20,
-  },
-  promptText: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#b9ccb5',
-    fontStyle: 'italic',
-  },
-  suggestionsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  suggestionCard: {
-    flex: 1,
-    backgroundColor: '#1c1b1b',
-    padding: 16,
-    borderRadius: 12,
+  freqBar: {
+    width: 8,
+    backgroundColor: BrutalColors.black,
     borderWidth: 1,
-    borderColor: 'rgba(185, 204, 181, 0.3)',
-    gap: 8,
+    borderColor: BrutalColors.black,
   },
-  suggestionIcon: {
+  promptHeader: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: BrutalColors.black,
+    letterSpacing: 0.8,
     marginBottom: 4,
   },
-  suggestionText: {
+  promptText: {
     fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#e5e2e1',
+    fontWeight: '900',
+    color: BrutalColors.black,
   },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  shortcutsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#1c1b1b',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#3b4b39',
+    gap: 12,
+    width: '100%',
   },
-  navItem: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 6,
+  shortcutBtn: {
+    flex: 1,
+    backgroundColor: BrutalColors.white,
+    borderWidth: 2,
+    borderColor: BrutalColors.black,
+    padding: 12,
+    ...BrutalShadow.sm,
+    gap: 6,
   },
-  navItemActive: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 255, 95, 0.1)',
-    paddingHorizontal: 24,
-    paddingVertical: 6,
-    borderRadius: 24,
-  },
-  navText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#849581',
-    marginTop: 4,
-  },
-  navTextActive: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#00ff5f',
-    marginTop: 4,
+  shortcutText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: BrutalColors.black,
   },
 });

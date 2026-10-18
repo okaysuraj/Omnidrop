@@ -1,13 +1,13 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
+  Entity,
   JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { PaymentStatus, PaymentMethod } from '../../common/enums';
+import { PaymentMethod, PaymentStatus } from '../../common/enums';
 import { Order } from './order.entity';
 
 @Entity('payments')

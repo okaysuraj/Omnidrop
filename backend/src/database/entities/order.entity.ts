@@ -1,23 +1,23 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   OneToOne,
-  JoinColumn,
-  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { OrderStatus, PaymentMethod } from '../../common/enums';
-import { User } from './user.entity';
-import { Store } from './store.entity';
+import { DeliveryTask } from './delivery-task.entity';
 import { OrderItem } from './order-item.entity';
 import { Payment } from './payment.entity';
-import { DeliveryTask } from './delivery-task.entity';
 import { Review } from './review.entity';
+import { Store } from './store.entity';
+import { User } from './user.entity';
 
 @Entity('orders')
 export class Order {

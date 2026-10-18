@@ -1,22 +1,22 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
-  OneToMany,
+  Entity,
   Index,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from '../../common/enums';
 import { Address } from './address.entity';
 import { CartItem } from './cart-item.entity';
+import { DeliveryTask } from './delivery-task.entity';
 import { Order } from './order.entity';
 import { Review } from './review.entity';
-import { DeliveryTask } from './delivery-task.entity';
 import { Store } from './store.entity';
-import { Wallet } from './wallet.entity';
 import { SupportTicket } from './support-ticket.entity';
+import { Wallet } from './wallet.entity';
 
 @Entity('users')
 export class User {

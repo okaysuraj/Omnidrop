@@ -1,27 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { DeliveryTask, Order, User, Store } from '../../database/entities';
+import { IsNull, Repository } from 'typeorm';
 import { DeliveryStatus, OrderStatus } from '../../common/enums';
+import { DeliveryTask, Order, User } from '../../database/entities';
 import { WsGateway } from '../../websockets/ws.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class DeliveryService {
-  private readonly logger = new Logger(DeliveryService.name);
-
   constructor(
     @InjectRepository(DeliveryTask) private deliveryTaskRepository: Repository<DeliveryTask>,
     @InjectRepository(Order) private orderRepository: Repository<Order>,
     @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(Store) private storeRepository: Repository<Store>,
     private wsGateway: WsGateway,
     private notificationsService: NotificationsService,
   ) {}
 
-  async findAvailableTasks(riderLat: number, riderLng: number) {
+  async findAvailableTasks() {
     return this.deliveryTaskRepository.find({
-      where: { status: DeliveryStatus.PENDING, riderId: null as any },
+      where: { status: DeliveryStatus.PENDING, riderId: IsNull() },
       relations: { order: { store: true } },
       order: { createdAt: 'ASC' },
       take: 20,
@@ -29,8 +26,7 @@ export class DeliveryService {
   }
 
   async findMyTasks(riderId: string, status?: DeliveryStatus) {
-    const where: any = { riderId };
-    if (status) where.status = status;
+    const where = { riderId, ...(status ? { status } : {}) };
 
     return this.deliveryTaskRepository.find({
       where,
@@ -51,29 +47,39 @@ export class DeliveryService {
   }
 
   async acceptTask(taskId: string, riderId: string) {
-    const task = await this.deliveryTaskRepository.findOne({
-      where: { id: taskId },
-    });
-
-    if (!task) throw new NotFoundException('Delivery task not found');
-    if (task.status !== DeliveryStatus.PENDING) {
-      throw new BadRequestException('Task is no longer available');
-    }
-
     // Check if rider has an active task
     const activeTask = await this.findActiveTask(riderId);
     if (activeTask) {
       throw new BadRequestException('You already have an active delivery');
     }
 
+    const task = await this.deliveryTaskRepository.findOne({
+      where: { id: taskId },
+    });
+
+    if (!task) throw new NotFoundException('Delivery task not found');
+
+    // Atomic conditional claim in PostgreSQL to prevent race condition
+    const updateResult = await this.deliveryTaskRepository
+      .createQueryBuilder()
+      .update(DeliveryTask)
+      .set({ riderId, status: DeliveryStatus.ACCEPTED })
+      .where('id = :taskId AND status = :pendingStatus AND (riderId IS NULL OR riderId = :empty)', {
+        taskId,
+        pendingStatus: DeliveryStatus.PENDING,
+        empty: '',
+      })
+      .execute();
+
+    if (updateResult.affected === 0) {
+      throw new BadRequestException(
+        'Task is no longer available or was claimed by another partner',
+      );
+    }
+
     task.riderId = riderId;
     task.status = DeliveryStatus.ACCEPTED;
-    await this.deliveryTaskRepository.save(task);
 
-    // Update order status
-    await this.orderRepository.update(task.orderId, { status: OrderStatus.PICKED_UP });
-
-    this.logger.log(`Task ${taskId} accepted by rider ${riderId}`);
     return task;
   }
 
@@ -122,10 +128,12 @@ export class DeliveryService {
     }
 
     task.status = status;
+    if (status === DeliveryStatus.DELIVERED) {
+      task.deliveredAt = new Date();
+    }
 
     await this.deliveryTaskRepository.save(task);
 
-    this.logger.log(`Task ${id} status updated to ${status} by rider ${riderId}`);
     this.wsGateway.emitDeliveryUpdate(id, { status });
 
     // Sync order status
@@ -133,12 +141,12 @@ export class DeliveryService {
     if (status === DeliveryStatus.PICKED_UP) orderStatus = OrderStatus.PICKED_UP;
     if (status === DeliveryStatus.IN_TRANSIT) orderStatus = OrderStatus.OUT_FOR_DELIVERY;
     if (status === DeliveryStatus.DELIVERED) orderStatus = OrderStatus.DELIVERED;
-    
+
     if (orderStatus) {
       task.order.status = orderStatus;
       await this.orderRepository.save(task.order);
       this.wsGateway.emitOrderStatusUpdate(task.orderId, { status: orderStatus });
-      
+
       // Notify customer
       if (task.order.user?.fcmToken) {
         let title = 'Delivery Update';
@@ -150,13 +158,12 @@ export class DeliveryService {
           title = 'Order Delivered! 🎉';
           body = 'Enjoy your items! Please rate your experience.';
         }
-        
-        this.notificationsService.sendPushNotification(
-          task.order.user.fcmToken,
-          title,
-          body,
-          { orderId: task.orderId, type: 'DELIVERY_UPDATE', status: orderStatus }
-        );
+
+        void this.notificationsService.sendPushNotification(task.order.user.fcmToken, title, body, {
+          orderId: task.orderId,
+          type: 'DELIVERY_UPDATE',
+          status: orderStatus,
+        });
       }
     }
 
@@ -216,8 +223,10 @@ export class DeliveryService {
     const dLng = this.toRad(lng2 - lng1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 

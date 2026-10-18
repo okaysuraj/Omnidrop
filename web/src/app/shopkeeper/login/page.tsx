@@ -1,209 +1,295 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import { BrutalFooter } from '@/components/shared/brutal-footer';
+import { BrutalNav } from '@/components/shared/brutal-nav';
+import { getErrorMessage } from '@/lib/errors';
+import { useAuth } from '@/providers/auth-provider';
+import { AlertTriangle, ArrowRight, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 
 export default function ShopkeeperLogin() {
   const router = useRouter();
+  const { login, register, error, clearError } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [showOtp, setShowOtp] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [localError, setLocalError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocalError('');
+    clearError();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await login(email, password);
       router.push('/shopkeeper/dashboard');
-    }, 1500);
+    } catch (err) {
+      setLocalError(getErrorMessage(err) || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocalError('');
+    clearError();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const fullName = `${firstName} ${lastName}`.trim() || storeName;
+      await register(email, password, fullName, 'SHOPKEEPER');
+      setSignupSuccess(true);
+    } catch (err) {
+      setLocalError(getErrorMessage(err) || 'Signup failed');
+    } finally {
       setLoading(false);
-      setShowOtp(true);
-    }, 1500);
+    }
   };
 
   return (
-    <div className="bg-background text-on-background min-h-screen">
-      {/* Top Navigation Bar */}
-      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-5 md:px-10 h-16 bg-surface-container-lowest shadow-sm">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
-          <span className="text-xl md:text-2xl font-extrabold text-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>OmniDrop Merchant</span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <button className="material-symbols-outlined text-on-surface-variant p-2 hover:bg-surface-variant/50 rounded-full transition-colors cursor-pointer active:scale-95">help</button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+      <BrutalNav />
 
-      <main className="min-h-screen pt-16 flex flex-col md:flex-row">
-        {/* Left Side: Brand Imagery & Value Props */}
-        <section className="hidden md:flex md:w-1/2 bg-inverse-surface relative overflow-hidden p-16 flex-col justify-center">
-          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-             {/* Decorative lines simulated via tailwind */}
-             <div className="absolute h-0.5 bg-gradient-to-r from-transparent via-[#00e554] to-transparent w-64 top-1/4 left-10 animate-[pulse_3s_infinite]" />
-             <div className="absolute h-0.5 bg-gradient-to-r from-transparent via-[#00e554] to-transparent w-48 top-2/4 right-20 animate-[pulse_3s_infinite_1.5s]" />
-             <div className="absolute h-0.5 bg-gradient-to-r from-transparent via-[#00e554] to-transparent w-80 bottom-1/4 left-32 animate-[pulse_3s_infinite_0.7s]" />
-          </div>
-          
-          <div className="relative z-10 max-w-lg">
-            <span className="inline-block bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-xs font-bold mb-6 tracking-wider">MERCHANT HUB 2.0</span>
-            <h1 className="text-4xl md:text-5xl text-on-primary mb-6 font-extrabold leading-tight" style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '-0.02em' }}>Accelerate Your Local Business Velocity.</h1>
-            <p className="text-lg text-inverse-on-surface/80 mb-12" style={{ fontFamily: 'Inter, sans-serif' }}>Join thousands of merchants using OmniDrop to deliver locally in minutes. Manage inventory, track orders, and grow your brand with instant efficiency.</p>
-            
-            <div className="space-y-8">
-              <div className="flex items-start gap-4">
-                <div className="bg-primary p-3 rounded-xl">
-                  <span className="material-symbols-outlined text-on-primary">speed</span>
+      <main className="container-brutal py-12 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
+          {/* Left Column: Merchant Network Value Proposition */}
+          <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#00E599] text-black border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000]">
+                {'// MERCHANT PORTAL PROTOCOL'}
+              </div>
+              <h1 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-neutral-900 leading-[1.08]">
+                Turn your physical store into a high-speed micro-hub.
+              </h1>
+              <p className="font-sans text-sm sm:text-base text-neutral-600 font-medium leading-relaxed max-w-lg">
+                Connect your shelves directly to verified customers living within 1.2km. Maintain
+                full retail price parity, keep 94% of every sale, and fulfill drops in 90 seconds.
+              </p>
+            </div>
+
+            {/* Merchant SLA Metrics */}
+            <div className="grid grid-cols-2 gap-3 font-tech text-xs">
+              <div className="p-4 bg-white border-2 border-black shadow-[3px_3px_0px_#000]">
+                <div className="text-neutral-500 uppercase font-bold text-[10px]">
+                  Merchant Take Rate
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-on-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>Instant Setup</h3>
-                  <p className="text-sm text-inverse-on-surface/60 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>Launch your store in under 10 minutes with our automated onboarding flow.</p>
+                <div className="font-black text-2xl text-neutral-900 mt-1">6% FLAT</div>
+                <div className="text-neutral-600 text-[11px] mt-1">
+                  Keep 94% vs. 35% on food apps
                 </div>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="bg-primary p-3 rounded-xl">
-                  <span className="material-symbols-outlined text-on-primary">monitoring</span>
+
+              <div className="p-4 bg-white border-2 border-black shadow-[3px_3px_0px_#000]">
+                <div className="text-neutral-500 uppercase font-bold text-[10px]">
+                  Tote Pack SLA
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-on-primary" style={{ fontFamily: 'Montserrat, sans-serif' }}>Real-time Insights</h3>
-                  <p className="text-sm text-inverse-on-surface/60 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>Watch your sales velocity in real-time with our merchant dashboard.</p>
+                <div className="font-black text-2xl text-[#059669] mt-1">90 SECONDS</div>
+                <div className="text-neutral-600 text-[11px] mt-1">
+                  Dual-scan handheld validation
                 </div>
               </div>
             </div>
+
+            {/* Value checklist */}
+            <div className="p-5 bg-white border-2 border-black shadow-[4px_4px_0px_#000] space-y-2.5 font-tech text-xs">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#059669] flex-shrink-0" />
+                <span>Zero listing fees or monthly software subscriptions</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#059669] flex-shrink-0" />
+                <span>Instant automated inventory sync via CSV or barcode</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#059669] flex-shrink-0" />
+                <span>Direct integration with localized bike courier fleet</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#059669] flex-shrink-0" />
+                <span>Instant daily settlements straight to your registered bank account</span>
+              </div>
+            </div>
           </div>
-          
-          {/* Visual Anchor Image */}
-          <div className="absolute -bottom-24 -right-12 w-96 h-96 opacity-40 pointer-events-none">
-            <div className="w-full h-full rounded-full border-[32px] border-primary-container/20 animate-pulse"></div>
-          </div>
-        </section>
 
-        {/* Right Side: Dynamic Authentication Card */}
-        <section className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-10 bg-surface">
-          <div className="w-full max-w-md transition-all duration-300">
-            <div className="bg-surface-container-lowest rounded-[32px] shadow-xl p-8 md:p-10 border border-outline-variant/30">
-              
-              {!showOtp ? (
-                <>
-                  {/* Form Header */}
-                  <div className="mb-10 text-center md:text-left">
-                    <h2 className="text-3xl font-bold text-on-surface mb-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                      {isLogin ? 'Welcome Back' : 'Join OmniDrop'}
-                    </h2>
-                    <p className="text-base text-on-surface-variant" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {isLogin ? 'Enter your credentials to manage your store.' : 'Create an account to start selling locally.'}
-                    </p>
+          {/* Right Column: Authentication Card with Tab Switching */}
+          <div className="lg:col-span-6 flex items-center justify-center">
+            <div className="card-brutal max-w-lg w-full p-6 sm:p-8 bg-white border-2 border-black shadow-[6px_6px_0px_#000]">
+              {/* Tab Toggle */}
+              <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-[#FAFAF8] border-2 border-black">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(true);
+                    setLocalError('');
+                  }}
+                  className={`h-10 font-tech font-bold text-xs uppercase transition-all ${
+                    isLogin
+                      ? 'bg-[#FFE600] text-black border-2 border-black shadow-[2px_2px_0px_#000]'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(false);
+                    setLocalError('');
+                  }}
+                  className={`h-10 font-tech font-bold text-xs uppercase transition-all ${
+                    !isLogin
+                      ? 'bg-[#FFE600] text-black border-2 border-black shadow-[2px_2px_0px_#000]'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  Onboard Store
+                </button>
+              </div>
+
+              {/* Form Title */}
+              <div className="mb-5">
+                <h2 className="font-display font-black text-2xl uppercase tracking-tight text-neutral-900">
+                  {isLogin ? 'Merchant Access' : 'Register Store Node'}
+                </h2>
+                <p className="font-sans text-xs text-neutral-600 mt-1 font-medium">
+                  {isLogin
+                    ? 'Authenticate to access store stock, pending tickets, and live dispatch.'
+                    : 'Submit your store credentials to deploy onto the local dispatch grid.'}
+                </p>
+              </div>
+
+              {(localError || error) && (
+                <div className="bg-[#FF4800]/10 border-2 border-[#FF4800] p-3 mb-5 font-tech text-xs text-neutral-900 flex items-center justify-between shadow-[2px_2px_0px_#FF4800]">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#FF4800] flex-shrink-0" />
+                    <span className="font-bold">{localError || error}</span>
                   </div>
-
-                  <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-6">
-                    {!isLogin && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="relative">
-                          <label className="absolute -top-2.5 left-4 bg-surface-container-lowest px-1 text-xs font-medium text-on-surface-variant">First Name</label>
-                          <input required className="w-full h-14 px-4 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base" placeholder="John" type="text"/>
-                        </div>
-                        <div className="relative">
-                          <label className="absolute -top-2.5 left-4 bg-surface-container-lowest px-1 text-xs font-medium text-on-surface-variant">Last Name</label>
-                          <input required className="w-full h-14 px-4 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base" placeholder="Doe" type="text"/>
-                        </div>
-                        <div className="relative col-span-2">
-                          <label className="absolute -top-2.5 left-4 bg-surface-container-lowest px-1 text-xs font-medium text-on-surface-variant">Store Name</label>
-                          <input required className="w-full h-14 px-4 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base" placeholder="The Local Artisan" type="text"/>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <label className="absolute -top-2.5 left-4 bg-surface-container-lowest px-1 text-xs font-medium text-primary">Email Address</label>
-                        <input required className="w-full h-14 px-4 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base" placeholder="name@store.com" type="email"/>
-                      </div>
-                      <div className="relative">
-                        <label className="absolute -top-2.5 left-4 bg-surface-container-lowest px-1 text-xs font-medium text-on-surface-variant">Password</label>
-                        <input required className="w-full h-14 px-4 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-base" placeholder="••••••••" type="password"/>
-                      </div>
-                    </div>
-
-                    {isLogin && (
-                      <div className="flex justify-between items-center text-xs">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input className="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
-                          <span className="text-on-surface-variant">Remember me</span>
-                        </label>
-                        <button type="button" className="text-primary font-bold hover:underline">Forgot Password?</button>
-                      </div>
-                    )}
-
-                    <button 
-                      type="submit" 
-                      disabled={loading}
-                      className="w-full h-14 bg-primary-container text-on-primary-container text-xl font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 flex items-center justify-center disabled:opacity-70 disabled:scale-100"
-                      style={{ fontFamily: 'Montserrat, sans-serif' }}
-                    >
-                      {loading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : (isLogin ? 'Log In' : 'Create Account')}
-                    </button>
-                  </form>
-                  
-                  {/* Footer Switch */}
-                  <div className="mt-8 text-center">
-                    <p className="text-sm text-on-surface-variant">
-                      {isLogin ? "Don't have an account?" : "Already have an account?"}
-                      <button type="button" className="text-primary font-bold hover:underline ml-1" onClick={() => setIsLogin(!isLogin)}>
-                        {isLogin ? 'Sign Up' : 'Log In'}
-                      </button>
-                    </p>
-                  </div>
-                </>
-              ) : (
-                /* OTP / Verification State */
-                <div className="space-y-8 py-4 animate-in fade-in zoom-in duration-300">
-                  <div className="text-center mb-6">
-                    <span className="material-symbols-outlined text-4xl text-primary mb-2">mark_email_read</span>
-                    <h2 className="text-2xl font-bold text-on-surface mb-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>Verify Email</h2>
-                    <p className="text-sm text-on-surface-variant text-center" style={{ fontFamily: 'Inter, sans-serif' }}>We've sent a 6-digit code to <span className="font-bold text-on-surface">your email</span></p>
-                  </div>
-                  
-                  <div className="flex justify-between gap-2">
-                    {[1,2,3,4,5,6].map((i) => (
-                      <input key={i} className="w-10 sm:w-12 h-14 text-center text-2xl font-bold border-b-2 border-outline-variant focus:border-primary outline-none bg-transparent" maxLength={1} type="text"/>
-                    ))}
-                  </div>
-                  
-                  <button 
-                    type="button" 
-                    onClick={() => router.push('/shopkeeper/dashboard')}
-                    className="w-full h-14 bg-primary text-on-primary text-xl font-bold rounded-2xl shadow-lg hover:bg-primary/90 transition-all"
-                    style={{ fontFamily: 'Montserrat, sans-serif' }}
+                  <button
+                    onClick={() => {
+                      setLocalError('');
+                      clearError();
+                    }}
                   >
-                    Verify & Launch
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                  
-                  <div className="text-center">
-                    <p className="text-sm text-on-surface-variant">Didn't receive code? <button className="text-primary font-bold hover:underline">Resend in 0:59</button></p>
-                  </div>
                 </div>
               )}
 
-            </div>
-            
-            {/* Trust Badges */}
-            <div className="mt-8 flex justify-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-              <div className="flex items-center gap-1 font-bold text-[10px] tracking-widest text-on-surface-variant" style={{ fontFamily: 'Inter, sans-serif' }}>
-                <span className="material-symbols-outlined text-sm">lock</span> SECURE ENCRYPTION
-              </div>
-              <div className="flex items-center gap-1 font-bold text-[10px] tracking-widest text-on-surface-variant" style={{ fontFamily: 'Inter, sans-serif' }}>
-                <span className="material-symbols-outlined text-sm">verified_user</span> GDPR COMPLIANT
+              {signupSuccess && (
+                <div className="bg-[#00E599]/20 border-2 border-black p-3 mb-5 font-tech text-xs text-neutral-900 font-bold shadow-[2px_2px_0px_#000]">
+                  Store credentials generated! A verification payload was sent to {email}. Verify
+                  your inbox before logging in.
+                </div>
+              )}
+
+              <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1 text-neutral-900">
+                          First Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="input-brutal"
+                          placeholder="John"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1 text-neutral-900">
+                          Last Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="input-brutal"
+                          placeholder="Doe"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1 text-neutral-900">
+                        Official Store Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={storeName}
+                        onChange={(e) => setStoreName(e.target.value)}
+                        className="input-brutal"
+                        placeholder="e.g. Green Valley Grocers"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1 text-neutral-900">
+                    Business Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-brutal"
+                    placeholder="merchant@store.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1 text-neutral-900">
+                    Access Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-brutal"
+                    placeholder="Min 6 characters"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-brutal-yellow !h-12 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 mt-4"
+                >
+                  <span>
+                    {loading
+                      ? 'COMMUNICATING WITH KERNEL...'
+                      : isLogin
+                        ? 'UNLOCK MERCHANT DASHBOARD'
+                        : 'SUBMIT STORE FOR VERIFICATION'}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+
+              <div className="mt-6 pt-4 border-t-2 border-black/10 text-center font-tech text-[11px] text-neutral-500">
+                NEED ASSISTANCE? ONBOARDING HELPLINE: +91 9876543210
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </main>
+
+      <BrutalFooter />
     </div>
   );
 }

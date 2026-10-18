@@ -1,14 +1,14 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { TicketStatus, TicketPriority } from '../../common/enums';
+import { TicketPriority, TicketStatus } from '../../common/enums';
 import { User } from './user.entity';
 
 @Entity('support_tickets')

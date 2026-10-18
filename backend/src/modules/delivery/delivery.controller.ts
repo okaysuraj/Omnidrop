@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
-import { DeliveryService } from './delivery.service';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole, DeliveryStatus } from '../../common/enums';
+import { DeliveryStatus, UserRole } from '../../common/enums';
 import { User } from '../../database/entities';
+import { DeliveryService } from './delivery.service';
 
 @Controller('delivery')
 export class DeliveryController {
@@ -11,12 +11,8 @@ export class DeliveryController {
 
   @Roles(UserRole.DELIVERY_PARTNER)
   @Get('available')
-  findAvailable(
-    @CurrentUser() user: User,
-    @Query('lat') lat: number,
-    @Query('lng') lng: number,
-  ) {
-    return this.deliveryService.findAvailableTasks(lat || user.currentLat, lng || user.currentLng);
+  findAvailable() {
+    return this.deliveryService.findAvailableTasks();
   }
 
   @Roles(UserRole.DELIVERY_PARTNER)
@@ -59,6 +55,7 @@ export class DeliveryController {
 
   @Roles(UserRole.DELIVERY_PARTNER)
   @Post('toggle-availability')
+  @Patch('availability')
   toggleAvailability(@CurrentUser() user: User) {
     return this.deliveryService.toggleAvailability(user.id);
   }
@@ -71,10 +68,7 @@ export class DeliveryController {
 
   @Roles(UserRole.ADMIN)
   @Post('tasks/:id/assign')
-  assignRider(
-    @Param('id') id: string,
-    @Body() data: { riderId: string },
-  ) {
+  assignRider(@Param('id') id: string, @Body() data: { riderId: string }) {
     return this.deliveryService.assignRider(id, data.riderId);
   }
 }

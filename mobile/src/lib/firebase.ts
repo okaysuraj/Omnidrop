@@ -1,8 +1,14 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth } from 'firebase/auth';
-// @ts-ignore
-import { getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import * as FirebaseAuth from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  getAuth,
+  initializeAuth,
+  type Auth,
+  type Persistence,
+} from 'firebase/auth';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
@@ -15,9 +21,28 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Use AsyncStorage for React Native persistence
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+// Use AsyncStorage for React Native persistence, browser persistence for web
+let auth: Auth;
+try {
+  if (Platform.OS === 'web') {
+    auth = initializeAuth(app, {
+      persistence: browserLocalPersistence,
+    });
+  } else {
+    // Firebase exposes this helper in the native bundle, but its browser types omit it.
+    const { getReactNativePersistence } = FirebaseAuth as typeof FirebaseAuth & {
+      getReactNativePersistence?: (storage: typeof AsyncStorage) => Persistence;
+    };
+    if (typeof getReactNativePersistence === 'function') {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } else {
+      auth = getAuth(app);
+    }
+  }
+} catch {
+  auth = getAuth(app);
+}
 
 export { app, auth };

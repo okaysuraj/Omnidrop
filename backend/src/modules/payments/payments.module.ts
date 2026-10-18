@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { StripeService } from './stripe.service';
-import { RazorpayService } from './razorpay.service';
-import { PaymentsController } from './payments.controller';
 import { OrdersModule } from '../orders/orders.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { PaymentsController } from './payments.controller';
+import { RazorpayService } from './razorpay.service';
+import { StripeService } from './stripe.service';
 
 @Module({
-  imports: [OrdersModule],
+  imports: [OrdersModule, WalletModule],
   controllers: [PaymentsController],
   providers: [StripeService, RazorpayService],
   exports: [StripeService, RazorpayService],

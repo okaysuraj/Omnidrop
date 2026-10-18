@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
-import { Product, Category } from '../../database/entities';
+import { Repository } from 'typeorm';
+import { Category, Product } from '../../database/entities';
 
 @Injectable()
 export class ProductsService {
-  private readonly logger = new Logger(ProductsService.name);
-
   constructor(
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
@@ -19,7 +17,12 @@ export class ProductsService {
     return this.categoryRepository.find({ order: { sortOrder: 'ASC' } });
   }
 
-  async createCategory(data: { name: string; slug: string; imageUrl?: string; sortOrder?: number }) {
+  async createCategory(data: {
+    name: string;
+    slug: string;
+    imageUrl?: string;
+    sortOrder?: number;
+  }) {
     const category = this.categoryRepository.create(data);
     return this.categoryRepository.save(category);
   }
@@ -89,16 +92,7 @@ export class ProductsService {
   async findById(id: string) {
     const product = await this.productRepository.findOne({
       where: { id },
-      relations: { category: true },
-    });
-    if (!product) throw new NotFoundException('Product not found');
-    return product;
-  }
-
-  async findBySlug(slug: string) {
-    const product = await this.productRepository.findOne({
-      where: { slug },
-      relations: { category: true },
+      relations: { category: true, inventory: { store: true } },
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;

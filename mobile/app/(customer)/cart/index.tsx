@@ -1,14 +1,36 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { api } from '../../src/lib/api';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CartScreen() {
   const router = useRouter();
-  const [cart, setCart] = useState<any>(null);
+  const [cart, setCart] = useState<Models.Cart | null>(null);
   const [promo, setPromo] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [validatingPromo, setValidatingPromo] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchCart = async () => {
@@ -40,112 +62,496 @@ export default function CartScreen() {
     }
   };
 
+  const subtotal = Number(cart?.subtotal ?? 0);
+  const deliveryThreshold = 199;
+  const isFreeDelivery = subtotal >= deliveryThreshold;
+  const amountToFreeDelivery = Math.max(0, deliveryThreshold - subtotal);
+  const deliveryFee = Number(cart?.deliveryFee ?? (isFreeDelivery ? 0 : 25));
+  const tax = Number(cart?.tax ?? 0);
+  const discount = promoApplied ? promoDiscount : 0;
+  const total = Math.max(0, subtotal + deliveryFee + tax - discount);
+
+  const handleApplyPromo = async () => {
+    if (!promo.trim()) return;
+    setValidatingPromo(true);
+    try {
+      const res = await api.promotions.validate(promo.trim().toUpperCase(), subtotal);
+      if (res && res.valid) {
+        setPromoDiscount(Number(res.discount || 0));
+        setPromoApplied(true);
+        Alert.alert(
+          'Voucher Applied',
+          `Saved ₹${Number(res.discount || 0).toFixed(0)} on this order!`,
+        );
+      } else {
+        setPromoApplied(false);
+        setPromoDiscount(0);
+        Alert.alert('Invalid Voucher', 'This promo code is not applicable.');
+      }
+    } catch (e) {
+      setPromoApplied(false);
+      setPromoDiscount(0);
+      Alert.alert(
+        'Invalid Voucher',
+        getErrorMessage(e) || getErrorMessage(e) || 'Promo code could not be applied.',
+      );
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {/* TopAppBar */}
-      <View className="w-full bg-surface shadow-sm z-40 flex-row justify-between items-center px-5 h-16">
-        <View className="flex-row items-center gap-1">
-          <MaterialIcons name="bolt" size={24} color="#006e24" />
-          <Text className="font-extrabold text-xl text-primary tracking-tighter">OmniDrop</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.back()} className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden items-center justify-center">
-          <MaterialIcons name="close" size={20} color="#191c1d" />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ TOTE MANIFEST · VERIFIED SETTLEMENT LEDGER" />
+      <BrutalHeader title="Shopping Manifest" subtitle="Active Order Items" />
 
-      <ScrollView className="flex-1 px-5 pt-6 pb-24" showsVerticalScrollIndicator={false}>
-        <Text className="text-2xl font-bold text-on-surface mb-6">Your Cart</Text>
-
-        {/* Cart Items List */}
-        <View className="flex-col gap-4 mb-6">
-          {loading ? (
-            <ActivityIndicator size="large" color="#00e554" style={{ marginTop: 20 }} />
-          ) : !cart?.items || cart.items.length === 0 ? (
-            <Text className="text-center mt-5 text-on-surface-variant font-medium">Your cart is empty.</Text>
-          ) : (
-            cart.items.map((item: any) => (
-              <View key={item.id} className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex-row items-center gap-4">
-                <View className="w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-surface-variant">
-                  <Image source={{ uri: item.product?.imageUrl || 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&q=80&w=400' }} className="w-full h-full" />
-                </View>
-                <View className="flex-1 justify-between h-full">
-                  <View>
-                    <Text className="font-bold text-on-surface" numberOfLines={1}>{item.product?.name}</Text>
-                    <Text className="text-sm text-on-surface-variant mt-1">{item.product?.weight || 'Item'}</Text>
-                  </View>
-                  <Text className="text-lg font-bold text-primary mt-1">${item.price}</Text>
-                </View>
-                <View className="flex-row items-center bg-surface-container rounded-full p-1 border border-outline-variant">
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, -1, item.quantity)} className="w-8 h-8 items-center justify-center rounded-full active:bg-surface-variant">
-                    <MaterialIcons name="remove" size={20} color="#191c1d" />
-                  </TouchableOpacity>
-                  <Text className="w-6 text-center font-bold text-on-surface">{item.quantity}</Text>
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, 1, item.quantity)} className="w-8 h-8 items-center justify-center rounded-full active:bg-surface-variant">
-                    <MaterialIcons name="add" size={20} color="#191c1d" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Add More Items Shortcut */}
-        <TouchableOpacity onPress={() => router.push('/(customer)/home')} className="w-full py-4 border-2 border-dashed border-outline-variant rounded-xl flex-row items-center justify-center gap-2 mb-8 active:bg-surface-container-low">
-          <MaterialIcons name="add-circle" size={20} color="#006e24" />
-          <Text className="text-primary font-bold">Add more items</Text>
-        </TouchableOpacity>
-
-        {/* Promo Code */}
-        <View className="bg-surface-container-lowest p-5 rounded-xl shadow-sm mb-6">
-          <Text className="font-bold text-on-surface mb-2">Promo Code</Text>
-          <View className="flex-row gap-2">
-            <TextInput 
-              value={promo}
-              onChangeText={setPromo}
-              placeholder="Enter code" 
-              className="flex-1 bg-surface border border-outline-variant rounded-lg px-4 py-2 text-sm text-on-surface"
-            />
-            <TouchableOpacity className="bg-inverse-surface px-6 py-3 rounded-lg justify-center active:opacity-90">
-              <Text className="text-surface-container-lowest font-bold">Apply</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <ActivityIndicator size="large" color={BrutalColors.black} style={{ marginTop: 40 }} />
+        ) : !cart?.items || cart.items.length === 0 ? (
+          <BrutalCard style={{ padding: 32, alignItems: 'center', marginTop: 24 }}>
+            <View
+              style={[
+                {
+                  width: 64,
+                  height: 64,
+                  backgroundColor: BrutalColors.yellow,
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 14,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <MaterialIcons name="shopping-bag" size={32} color={BrutalColors.black} />
+            </View>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+              }}
+            >
+              Manifest Is Empty
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                color: '#666',
+                textAlign: 'center',
+                marginTop: 4,
+                marginBottom: 18,
+                lineHeight: 17,
+              }}
+            >
+              No physical SKUs currently queued in your order tote. Explore our neighborhood
+              micro-hubs for instant 12-minute delivery.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/products')}
+              style={[
+                {
+                  backgroundColor: BrutalColors.yellow,
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  paddingHorizontal: 20,
+                  paddingVertical: 11,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Browse Catalog →
+              </Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Bill Details */}
-        <View className="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex-col gap-3 mb-6">
-          <Text className="text-xl font-bold text-on-surface mb-2">Bill Details</Text>
-          <View className="flex-row justify-between">
-            <Text className="text-sm text-on-surface-variant">Item Total</Text>
-            <Text className="text-sm text-on-surface-variant">${cart?.subtotal.toFixed(2)}</Text>
-          </View>
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center">
-              <Text className="text-sm text-on-surface-variant mr-2">Delivery Fee</Text>
-              <View className="bg-primary-container px-2 py-0.5 rounded-full">
-                <Text className="text-[10px] font-bold text-on-primary-fixed">FASTEST</Text>
+          </BrutalCard>
+        ) : (
+          <View style={{ gap: 14 }}>
+            {/* Free Delivery SLA Progress Strip */}
+            <View
+              style={[
+                {
+                  backgroundColor: isFreeDelivery ? '#E8FBF4' : '#FFFDF0',
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  padding: 12,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 6,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                  }}
+                >
+                  {isFreeDelivery
+                    ? '🎉 FREE DISPATCH UNLOCKED!'
+                    : `⚡ ADD ₹${amountToFreeDelivery.toFixed(0)} MORE FOR FREE DISPATCH`}
+                </Text>
+                <BrutalBadge
+                  label={isFreeDelivery ? 'QUALIFIED' : 'TARGET ₹199'}
+                  variant={isFreeDelivery ? 'green' : 'yellow'}
+                />
+              </View>
+              <View
+                style={{
+                  height: 6,
+                  backgroundColor: '#E4E4DC',
+                  borderWidth: 1,
+                  borderColor: BrutalColors.black,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${Math.min(100, Math.round((subtotal / deliveryThreshold) * 100))}%`,
+                    height: '100%',
+                    backgroundColor: isFreeDelivery ? BrutalColors.green : BrutalColors.yellow,
+                  }}
+                />
               </View>
             </View>
-            <Text className="text-sm text-on-surface-variant">${cart?.deliveryFee.toFixed(2)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-sm text-on-surface-variant">Taxes</Text>
-            <Text className="text-sm text-on-surface-variant">${cart?.tax.toFixed(2)}</Text>
-          </View>
-          <View className="h-[1px] bg-outline-variant w-full my-2" />
-          <View className="flex-row justify-between items-center">
-            <Text className="text-xl font-bold text-on-surface">Total to Pay</Text>
-            <Text className="text-xl font-bold text-on-surface">${cart?.total.toFixed(2)}</Text>
-          </View>
-        </View>
 
-        {/* Checkout Button */}
-        {cart?.items?.length > 0 && (
-          <TouchableOpacity onPress={() => router.push('/(customer)/checkout')} className="w-full bg-primary-container py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm active:opacity-90">
-            <Text className="text-on-primary-fixed text-lg font-bold">Proceed to Checkout</Text>
-            <MaterialIcons name="arrow-forward" size={24} color="#002106" />
-          </TouchableOpacity>
+            {/* Manifest List */}
+            <View style={{ gap: 10 }}>
+              {cart.items.map((item) => (
+                <BrutalCard
+                  key={item.id}
+                  style={{
+                    padding: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          item.product?.images?.[0] ||
+                          'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200',
+                      }}
+                      style={{
+                        width: 54,
+                        height: 54,
+                        borderWidth: 1.5,
+                        borderColor: BrutalColors.black,
+                        marginRight: 10,
+                      }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '900',
+                          textTransform: 'uppercase',
+                          color: BrutalColors.black,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {item.product?.name || 'Product'}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 10, fontWeight: '700', color: '#666', marginTop: 1 }}
+                      >
+                        Per {item.product?.unit || item.product?.weight || 'pack'}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: '900',
+                          color: BrutalColors.black,
+                          marginTop: 2,
+                        }}
+                      >
+                        ₹{Number(item.effectivePrice ?? item.product?.sellingPrice ?? 0).toFixed(0)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Brutal Stepper */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderWidth: 1.5,
+                      borderColor: BrutalColors.black,
+                      backgroundColor: BrutalColors.subtle,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => updateQuantity(item.id, -1, item.quantity)}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <MaterialIcons name="remove" size={16} color={BrutalColors.black} />
+                    </TouchableOpacity>
+                    <Text
+                      style={{
+                        width: 26,
+                        textAlign: 'center',
+                        fontWeight: '900',
+                        fontSize: 13,
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {item.quantity}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => updateQuantity(item.id, 1, item.quantity)}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <MaterialIcons name="add" size={16} color={BrutalColors.black} />
+                    </TouchableOpacity>
+                  </View>
+                </BrutalCard>
+              ))}
+            </View>
+
+            {/* Add More Items Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(customer)/products')}
+              style={[
+                {
+                  borderWidth: 2,
+                  borderStyle: 'dashed',
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.white,
+                  paddingVertical: 10,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                },
+              ]}
+            >
+              <MaterialIcons
+                name="add"
+                size={16}
+                color={BrutalColors.black}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Add More Items From Shelves
+              </Text>
+            </TouchableOpacity>
+
+            {/* Promo Voucher Box */}
+            <BrutalCard style={{ padding: 12 }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: '#666',
+                  marginBottom: 6,
+                }}
+              >
+                Promotional Voucher Code
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={promo}
+                  onChangeText={setPromo}
+                  placeholder="e.g. OMNI50"
+                  placeholderTextColor="#888"
+                  autoCapitalize="characters"
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1.5,
+                    borderColor: BrutalColors.black,
+                    paddingHorizontal: 10,
+                    height: 38,
+                    fontSize: 12,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                  }}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleApplyPromo}
+                  disabled={validatingPromo}
+                  style={[
+                    {
+                      backgroundColor: BrutalColors.yellow,
+                      borderWidth: 1.5,
+                      borderColor: BrutalColors.black,
+                      paddingHorizontal: 14,
+                      justifyContent: 'center',
+                    },
+                    BrutalShadow.sm,
+                  ]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '900', textTransform: 'uppercase' }}>
+                    {validatingPromo ? 'Checking...' : promoApplied ? 'Applied ✓' : 'Apply'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </BrutalCard>
+
+            {/* Receipt Summary Ledger */}
+            <BrutalCard style={{ padding: 16 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  paddingBottom: 8,
+                  borderBottomWidth: 1.5,
+                  borderBottomColor: BrutalColors.black,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                  }}
+                >
+                  Receipt Breakdown
+                </Text>
+                <BrutalBadge label="VERIFIED" variant="green" />
+              </View>
+
+              <View style={{ gap: 7 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>Subtotal</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: BrutalColors.black }}>
+                    ₹{subtotal.toFixed(0)}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>
+                    Delivery Corridor SLA
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '900',
+                      color: deliveryFee === 0 ? '#008855' : BrutalColors.black,
+                    }}
+                  >
+                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(0)}`}
+                  </Text>
+                </View>
+
+                {tax > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#666' }}>
+                      Taxes & Regulatory Fee
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: BrutalColors.black }}>
+                      ₹{tax.toFixed(0)}
+                    </Text>
+                  </View>
+                )}
+
+                {promoApplied && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#008855' }}>
+                      Voucher Discount
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#008855' }}>
+                      -₹{discount.toFixed(0)}
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 8,
+                    paddingTop: 8,
+                    borderTopWidth: 2,
+                    borderTopColor: BrutalColors.black,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      color: BrutalColors.black,
+                    }}
+                  >
+                    Total Settlement
+                  </Text>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: BrutalColors.black }}>
+                    ₹{total.toFixed(0)}
+                  </Text>
+                </View>
+              </View>
+
+              <BrutalButton
+                title="Proceed To Checkout →"
+                onPress={() => {
+                  if (promoApplied && promo.trim()) {
+                    router.push({
+                      pathname: '/(customer)/checkout',
+                      params: { promo: promo.trim().toUpperCase() },
+                    });
+                  } else {
+                    router.push('/(customer)/checkout');
+                  }
+                }}
+                variant="yellow"
+                size="lg"
+                fullWidth
+                style={{ marginTop: 16 }}
+              />
+            </BrutalCard>
+          </View>
         )}
-
       </ScrollView>
     </SafeAreaView>
   );

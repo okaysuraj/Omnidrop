@@ -1,17 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
-import { ProductsService } from './products.service';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
+import { Category, Product } from '../../database/entities';
+import { ProductsService } from './products.service';
 
 @Controller('products')
 export class ProductsController {
@@ -25,13 +17,15 @@ export class ProductsController {
 
   @Roles(UserRole.ADMIN)
   @Post('categories')
-  createCategory(@Body() data: { name: string; slug: string; imageUrl?: string; sortOrder?: number }) {
+  createCategory(
+    @Body() data: { name: string; slug: string; imageUrl?: string; sortOrder?: number },
+  ) {
     return this.productsService.createCategory(data);
   }
 
   @Roles(UserRole.ADMIN)
   @Patch('categories/:id')
-  updateCategory(@Param('id') id: string, @Body() data: any) {
+  updateCategory(@Param('id') id: string, @Body() data: Partial<Category>) {
     return this.productsService.updateCategory(id, data);
   }
 
@@ -65,19 +59,19 @@ export class ProductsController {
     return this.productsService.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.SHOPKEEPER)
   @Post()
-  create(@Body() data: any) {
+  create(@Body() data: Partial<Product>) {
     return this.productsService.create(data);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.SHOPKEEPER)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() data: any) {
+  update(@Param('id') id: string, @Body() data: Partial<Product>) {
     return this.productsService.update(id, data);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.SHOPKEEPER)
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.productsService.delete(id);

@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, Address } from '../../database/entities';
 import { UserRole } from '../../common/enums';
+import { Address, User } from '../../database/entities';
 
 @Injectable()
 export class UsersService {
@@ -13,8 +13,7 @@ export class UsersService {
 
   // --- User management (admin) ---
   async findAll(page = 1, pageSize = 20, role?: UserRole) {
-    const where: any = {};
-    if (role) where.role = role;
+    const where = role ? { role } : {};
 
     const [items, total] = await this.userRepository.findAndCount({
       where,
@@ -26,7 +25,10 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    const user = await this.userRepository.findOne({ where: { id }, relations: { addresses: true } });
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { addresses: true },
+    });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

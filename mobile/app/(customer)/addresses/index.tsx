@@ -1,112 +1,380 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground } from 'react-native';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalInput,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import type * as Models from '@/types';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SavedAddressesScreen() {
   const router = useRouter();
+  const [addresses, setAddresses] = useState<Models.Address[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [label, setLabel] = useState('Home');
+  const [streetAddress, setStreetAddress] = useState('');
+  const [city, setCity] = useState('Bengaluru');
+  const [state, setState] = useState('Karnataka');
+  const [pincode, setPincode] = useState('560038');
+
+  const fetchAddresses = async () => {
+    try {
+      setLoading(true);
+      const data = await api.users.getAddresses();
+      setAddresses(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Failed to load addresses:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAddresses();
+  }, []);
+
+  const handleAddAddress = async () => {
+    if (!streetAddress || !city || !pincode) {
+      Alert.alert('Required Fields', 'Please fill in Street Address, City, and Pincode.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.users.addAddress({
+        label,
+        addressLine1: streetAddress,
+        city,
+        state,
+        pincode,
+        lat: 12.9716,
+        lng: 77.5946,
+        isDefault: addresses.length === 0,
+      });
+      setModalVisible(false);
+      setStreetAddress('');
+      fetchAddresses();
+    } catch (e) {
+      Alert.alert('Error', getErrorMessage(e) || 'Failed to save address.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    Alert.alert('Delete Coordinates', 'Remove this delivery waypoint?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.users.deleteAddress(id);
+            fetchAddresses();
+          } catch {
+            Alert.alert('Error', 'Failed to delete address.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* Top App Bar */}
-      <View className="flex-row items-center justify-between px-5 py-4 border-b border-surface-container bg-background z-40">
-        <View className="flex-row items-center gap-4">
-          <TouchableOpacity onPress={() => router.back()} className="active:scale-95 transition-transform">
-            <Ionicons name="arrow-back" size={24} color="#006e24" />
-          </TouchableOpacity>
-          <Text className="font-bold text-xl text-primary">Saved Addresses</Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => router.push('/(customer)/profile')}
-          className="w-10 h-10 rounded-full bg-surface-container-high items-center justify-center active:opacity-80"
-        >
-          <Ionicons name="person" size={20} color="#3b4b39" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView className="flex-1 px-5 pt-6 pb-32" contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Section Header */}
-        <View className="mb-8">
-          <Text className="font-extrabold text-2xl text-on-background mb-2">Saved Addresses</Text>
-          <Text className="text-base text-on-surface-variant opacity-80">Quickly select your delivery destination</Text>
-        </View>
-
-        {/* Address List */}
-        <View className="gap-4">
-          {/* Home Address */}
-          <TouchableOpacity className="bg-surface-container-lowest rounded-xl p-4 flex-row items-start gap-4 border border-outline-variant/10 shadow-sm active:opacity-80">
-            <View className="w-12 h-12 rounded-lg bg-primary-container items-center justify-center flex-shrink-0">
-              <Ionicons name="home" size={24} color="#007125" />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row justify-between items-start">
-                <Text className="font-bold text-xs text-primary uppercase tracking-wider">Home</Text>
-                <TouchableOpacity className="p-1">
-                  <Ionicons name="pencil" size={16} color="#3b4b39" />
-                </TouchableOpacity>
-              </View>
-              <Text className="font-bold text-xl text-on-surface mt-1">1248 Oakwood Avenue</Text>
-              <Text className="text-sm text-on-surface-variant mt-1">Los Angeles, CA 90024</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Work Address */}
-          <TouchableOpacity className="bg-surface-container-lowest rounded-xl p-4 flex-row items-start gap-4 border border-outline-variant/10 shadow-sm active:opacity-80">
-            <View className="w-12 h-12 rounded-lg bg-secondary-container items-center justify-center flex-shrink-0">
-              <Ionicons name="briefcase" size={24} color="#5b617d" />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row justify-between items-start">
-                <Text className="font-bold text-xs text-secondary uppercase tracking-wider">Work</Text>
-                <TouchableOpacity className="p-1">
-                  <Ionicons name="pencil" size={16} color="#3b4b39" />
-                </TouchableOpacity>
-              </View>
-              <Text className="font-bold text-xl text-on-surface mt-1">Tech Park Plaza, Ste 402</Text>
-              <Text className="text-sm text-on-surface-variant mt-1">Santa Monica, CA 90401</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Other Address */}
-          <TouchableOpacity className="bg-surface-container-lowest rounded-xl p-4 flex-row items-start gap-4 border border-outline-variant/10 shadow-sm active:opacity-80">
-            <View className="w-12 h-12 rounded-lg bg-tertiary-container items-center justify-center flex-shrink-0">
-              <Ionicons name="location" size={24} color="#ac3b00" />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row justify-between items-start">
-                <Text className="font-bold text-xs text-tertiary uppercase tracking-wider">Other (Gym)</Text>
-                <TouchableOpacity className="p-1">
-                  <Ionicons name="pencil" size={16} color="#3b4b39" />
-                </TouchableOpacity>
-              </View>
-              <Text className="font-bold text-xl text-on-surface mt-1">77 Sunset Blvd</Text>
-              <Text className="text-sm text-on-surface-variant mt-1">West Hollywood, CA 90046</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Decorative Map Section */}
-        <View className="mt-8 rounded-2xl overflow-hidden h-48 relative border border-surface-container-high shadow-sm">
-          <ImageBackground 
-            source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800' }} 
-            className="flex-1"
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ DISPATCH COORDINATES · VERIFIED RESIDENTIAL NODES" />
+      <BrutalHeader
+        title="Saved Coordinates"
+        subtitle="Delivery Gateways"
+        rightAction={
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setModalVisible(true)}
+            style={[
+              {
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                flexDirection: 'row',
+                alignItems: 'center',
+              },
+              BrutalShadow.sm,
+            ]}
           >
-            <View className="absolute inset-0 bg-background/40" />
-            <View className="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-full flex-row items-center gap-2 shadow-sm">
-              <View className="w-2 h-2 rounded-full bg-primary-fixed-dim" />
-              <Text className="font-medium text-xs text-on-surface">3 Locations Saved</Text>
-            </View>
-          </ImageBackground>
-        </View>
+            <MaterialIcons name="add" size={16} color={BrutalColors.black} />
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                marginLeft: 2,
+                color: BrutalColors.black,
+              }}
+            >
+              Add Node
+            </Text>
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <ActivityIndicator size="large" color={BrutalColors.black} style={{ marginTop: 40 }} />
+        ) : addresses.length === 0 ? (
+          <BrutalCard style={{ padding: 30, alignItems: 'center', marginTop: 20 }}>
+            <MaterialIcons name="location-off" size={48} color={BrutalColors.black} />
+            <Text
+              style={{ fontSize: 16, fontWeight: '900', textTransform: 'uppercase', marginTop: 12 }}
+            >
+              No Coordinates Recorded
+            </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                color: '#666',
+                textAlign: 'center',
+                marginTop: 4,
+                marginBottom: 16,
+                lineHeight: 16,
+              }}
+            >
+              Register your apartment, office or residence to enable instant 12-minute courier
+              drops.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              style={[
+                {
+                  backgroundColor: BrutalColors.yellow,
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                },
+                BrutalShadow.sm,
+              ]}
+            >
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                + Add First Node
+              </Text>
+            </TouchableOpacity>
+          </BrutalCard>
+        ) : (
+          <View style={{ gap: 12 }}>
+            {addresses.map((addr) => (
+              <BrutalCard key={addr.id} style={{ padding: 14 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <MaterialIcons
+                      name={addr.label?.toLowerCase().includes('work') ? 'business' : 'home'}
+                      size={18}
+                      color={BrutalColors.black}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {addr.label || 'Home'}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {addr.isDefault && <BrutalBadge label="PRIMARY" variant="green" />}
+                    <TouchableOpacity
+                      onPress={() => handleDeleteAddress(addr.id)}
+                      style={{
+                        padding: 5,
+                        borderWidth: 1.5,
+                        borderColor: BrutalColors.black,
+                        backgroundColor: '#FFEBEA',
+                      }}
+                    >
+                      <MaterialIcons name="delete-outline" size={16} color={BrutalColors.red} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#222', marginTop: 2 }}>
+                  {addr.addressLine1}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#666', marginTop: 1 }}>
+                  {addr.city}, {addr.state || 'Karnataka'} - {addr.pincode}
+                </Text>
+              </BrutalCard>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Bottom Navigation Component (Action Shell) */}
-      <View className="absolute bottom-0 w-full px-5 py-6 bg-surface shadow-lg border-t border-surface-variant/20">
-        <TouchableOpacity className="flex-row items-center justify-center bg-primary rounded-full w-full py-4 gap-4 active:scale-95 shadow-md">
-          <Text className="font-bold text-sm uppercase tracking-widest text-on-primary">Add New Address</Text>
-          <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-        </TouchableOpacity>
-      </View>
+      {/* Add Coordinates Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View
+            style={{
+              backgroundColor: BrutalColors.bg,
+              borderTopWidth: 3,
+              borderTopColor: BrutalColors.black,
+              padding: 20,
+              maxHeight: '85%',
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Add Delivery Coordinates
+              </Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.white,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MaterialIcons name="close" size={18} color={BrutalColors.black} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Label Chips */}
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  marginBottom: 6,
+                  color: BrutalColors.black,
+                }}
+              >
+                Waypoint Label:
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {['Home', 'Work', 'Other'].map((l) => (
+                  <TouchableOpacity
+                    key={l}
+                    onPress={() => setLabel(l)}
+                    activeOpacity={0.8}
+                    style={{
+                      borderWidth: 2,
+                      borderColor: BrutalColors.black,
+                      backgroundColor: label === l ? BrutalColors.yellow : BrutalColors.white,
+                      paddingHorizontal: 16,
+                      paddingVertical: 7,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {l}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <BrutalInput
+                label="Street Address / Gate / Floor"
+                value={streetAddress}
+                onChangeText={setStreetAddress}
+                placeholder="e.g. Flat 302, Palm Heights, 12th Main"
+                leftIcon="location-on"
+              />
+
+              <BrutalInput
+                label="City / Hyperlocal Cluster"
+                value={city}
+                onChangeText={setCity}
+                placeholder="e.g. Bengaluru"
+                leftIcon="location-city"
+              />
+
+              <BrutalInput
+                label="Pincode / Postal Code"
+                value={pincode}
+                onChangeText={setPincode}
+                placeholder="560038"
+                keyboardType="numeric"
+                leftIcon="pin"
+              />
+
+              <BrutalButton
+                title={saving ? 'SAVING COORDINATES...' : 'CONFIRM WAYPOINT →'}
+                onPress={handleAddAddress}
+                loading={saving}
+                variant="yellow"
+                size="lg"
+                fullWidth
+                style={{ marginTop: 10 }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

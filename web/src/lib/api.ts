@@ -1,75 +1,86 @@
-import { auth } from './firebase';
+import type {
+  Address,
+  AddressInput,
+  Cart,
+  Category,
+  CheckoutInput,
+  DashboardStats,
+  DeliveryTask,
+  Earnings,
+  InventoryInput,
+  InventoryItem,
+  Order,
+  OrderStats,
+  PaginatedResponse,
+  PaymentIntentResult,
+  Product,
+  ProductInput,
+  ProfileInput,
+  Promotion,
+  PromotionValidation,
+  RegisterInput,
+  Review,
+  ReviewInput,
+  Store,
+  StoreInput,
+  StoreWithDistance,
+  User,
+  UserStats,
+  WalletDetails,
+  WalletIntentResult,
+  WalletTransaction,
+} from '../types';
 
+import { auth } from './firebase';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-interface RequestOptions extends RequestInit {
-  skipAuth?: boolean;
-}
-
-async function getAuthToken(): Promise<string | null> {
-  try {
-    const user = auth.currentUser;
-    if (!user) return null;
-    return await user.getIdToken();
-  } catch {
-    return null;
-  }
-}
-
-async function apiRequest<T>(
+async function request<T>(
   endpoint: string,
-  options: RequestOptions = {},
+  method = 'GET',
+  body?: unknown,
+  skipAuth = false,
 ): Promise<T> {
-  const { skipAuth = false, headers: customHeaders, ...rest } = options;
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...customHeaders as Record<string, string>,
-  };
-
-  if (!skipAuth) {
-    const token = await getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (!skipAuth && auth.currentUser) {
+    const token = await auth.currentUser.getIdToken();
+    headers.Authorization = 'Bearer ' + token;
   }
-
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...rest,
+  const response = await fetch(API_BASE + endpoint, {
+    method,
     headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const error = await response.json().catch(() => null);
+    const message = error?.message;
+    throw new Error(
+      Array.isArray(message) ? message.join(', ') : message || 'HTTP ' + response.status,
+    );
   }
-
-  const data = await response.json();
-  return data.data !== undefined ? data.data : data;
+  const result = await response.json();
+  // The backend wraps successful responses in { success, data }.
+  return result.data !== undefined ? result.data : result;
 }
 
-// Typed API client
 export const api = {
-  // Auth
   auth: {
-    register: (data: any) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
-    login: (firebaseToken: string) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ firebaseToken }), skipAuth: true }),
-    me: () => apiRequest('/auth/me'),
-    updateProfile: (data: any) => apiRequest('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    register: (data: RegisterInput) => request<User>('/auth/register', 'POST', data, true),
+    login: (firebaseToken: string) => request<User>('/auth/login', 'POST', { firebaseToken }, true),
+    me: () => request<User>('/auth/me'),
+    updateProfile: (data: ProfileInput) => request<User>('/auth/profile', 'PATCH', data),
   },
-
-  // Stores
   stores: {
-    nearby: (lat: number, lng: number, radius?: number) => apiRequest(`/stores/nearby?lat=${lat}&lng=${lng}${radius ? `&radius=${radius}` : ''}`),
-    getById: (id: string) => apiRequest(`/stores/${id}`),
-    create: (data: any) => apiRequest('/stores', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) => apiRequest(`/stores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    myStores: () => apiRequest('/stores/my/stores'),
-    getAll: (page?: number) => apiRequest(`/stores?page=${page || 1}`),
-    verify: (id: string) => apiRequest(`/stores/${id}/verify`, { method: 'PATCH' }),
+    nearby: (lat: number, lng: number, radius?: number) =>
+      request<StoreWithDistance[]>(
+        `/stores/nearby?lat=${lat}&lng=${lng}${radius ? `&radius=${radius}` : ''}`,
+      ),
+    getById: (id: string) => request<Store>(`/stores/${id}`),
+    create: (data: StoreInput) => request<Store>('/stores', 'POST', data),
+    update: (id: string, data: StoreInput) => request<Store>(`/stores/${id}`, 'PATCH', data),
+    myStores: () => request<Store[]>('/stores/my/stores'),
+    getAll: (page?: number) => request<PaginatedResponse<Store>>(`/stores?page=${page || 1}`),
+    verify: (id: string) => request<Store>(`/stores/${id}/verify`, 'PATCH'),
   },
-
-  // Products
   products: {
     list: (params?: { page?: number; categoryId?: string; search?: string; sort?: string }) => {
       const query = new URLSearchParams();
@@ -77,102 +88,109 @@ export const api = {
       if (params?.categoryId) query.set('categoryId', params.categoryId);
       if (params?.search) query.set('search', params.search);
       if (params?.sort) query.set('sort', params.sort);
-      return apiRequest(`/products?${query.toString()}`);
+      return request<PaginatedResponse<Product>>(`/products?${query.toString()}`);
     },
-    getById: (id: string) => apiRequest(`/products/${id}`),
-    search: (q: string) => apiRequest(`/products/search?q=${q}`),
-    categories: () => apiRequest('/products/categories'),
+    getById: (id: string) => request<Product>(`/products/${id}`),
+    search: (q: string) => request<Product[]>(`/products/search?q=${encodeURIComponent(q)}`),
+    categories: () => request<Category[]>('/products/categories'),
+    create: (data: ProductInput) => request<Product>('/products', 'POST', data),
+    update: (id: string, data: ProductInput) => request<Product>(`/products/${id}`, 'PATCH', data),
   },
-
-  // Inventory
   inventory: {
     byStore: (storeId: string, categoryId?: string) =>
-      apiRequest(`/stores/${storeId}/inventory${categoryId ? `?categoryId=${categoryId}` : ''}`),
-    manage: (storeId: string) => apiRequest(`/stores/${storeId}/inventory/manage`),
-    upsert: (storeId: string, data: any) =>
-      apiRequest(`/stores/${storeId}/inventory`, { method: 'POST', body: JSON.stringify(data) }),
+      request<InventoryItem[]>(
+        `/stores/${storeId}/inventory${categoryId ? `?categoryId=${categoryId}` : ''}`,
+      ),
+    manage: (storeId: string) =>
+      request<PaginatedResponse<InventoryItem>>(`/stores/${storeId}/inventory/manage`),
+    upsert: (storeId: string, data: InventoryInput) =>
+      request<InventoryItem>(`/stores/${storeId}/inventory`, 'POST', data),
     updateStock: (storeId: string, productId: string, stock: number) =>
-      apiRequest(`/stores/${storeId}/inventory/${productId}/stock`, { method: 'PATCH', body: JSON.stringify({ stock }) }),
+      request<InventoryItem>(`/stores/${storeId}/inventory/${productId}/stock`, 'PATCH', { stock }),
   },
-
-  // Cart
   cart: {
-    get: () => apiRequest('/cart'),
+    get: () => request<Cart>('/cart'),
     addItem: (storeId: string, productId: string, quantity: number) =>
-      apiRequest('/cart/items', { method: 'POST', body: JSON.stringify({ storeId, productId, quantity }) }),
+      request<Cart>('/cart/items', 'POST', { storeId, productId, quantity }),
     updateQuantity: (itemId: string, quantity: number) =>
-      apiRequest(`/cart/items/${itemId}`, { method: 'PATCH', body: JSON.stringify({ quantity }) }),
-    removeItem: (itemId: string) =>
-      apiRequest(`/cart/items/${itemId}`, { method: 'DELETE' }),
-    clear: () => apiRequest('/cart', { method: 'DELETE' }),
+      request<Cart>(`/cart/items/${itemId}`, 'PATCH', { quantity }),
+    removeItem: (itemId: string) => request<Cart>(`/cart/items/${itemId}`, 'DELETE'),
+    clear: () => request<Cart>('/cart', 'DELETE'),
   },
-
-  // Orders
   orders: {
-    checkout: (data: any) => apiRequest('/orders', { method: 'POST', body: JSON.stringify(data) }),
-    myOrders: (page?: number) => apiRequest(`/orders/my?page=${page || 1}`),
-    getById: (id: string) => apiRequest(`/orders/${id}`),
-    cancel: (id: string) => apiRequest(`/orders/${id}/cancel`, { method: 'POST' }),
+    checkout: (data: CheckoutInput) => request<Order>('/orders', 'POST', data),
+    myOrders: (page?: number) => request<PaginatedResponse<Order>>(`/orders/my?page=${page || 1}`),
+    getById: (id: string) => request<Order>(`/orders/${id}`),
+    cancel: (id: string) => request<Order>(`/orders/${id}/cancel`, 'POST'),
     updateStatus: (id: string, status: string) =>
-      apiRequest(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+      request<Order>(`/orders/${id}/status`, 'PATCH', { status }),
     byStore: (storeId: string, status?: string) =>
-      apiRequest(`/orders/store/${storeId}${status ? `?status=${status}` : ''}`),
-    stats: () => apiRequest('/orders/stats'),
+      request<PaginatedResponse<Order>>(
+        `/orders/store/${storeId}${status ? `?status=${status}` : ''}`,
+      ),
+    stats: () => request<OrderStats>('/orders/stats'),
     all: (page?: number, status?: string) =>
-      apiRequest(`/orders?page=${page || 1}${status ? `&status=${status}` : ''}`),
+      request<PaginatedResponse<Order>>(
+        `/orders?page=${page || 1}${status ? `&status=${status}` : ''}`,
+      ),
   },
-
-  // Delivery
   delivery: {
     available: (lat?: number, lng?: number) =>
-      apiRequest(`/delivery/available${lat ? `?lat=${lat}&lng=${lng}` : ''}`),
+      request<DeliveryTask[]>(`/delivery/available${lat ? `?lat=${lat}&lng=${lng}` : ''}`),
     myTasks: (status?: string) =>
-      apiRequest(`/delivery/my-tasks${status ? `?status=${status}` : ''}`),
-    activeTask: () => apiRequest('/delivery/active'),
-    acceptTask: (id: string) => apiRequest(`/delivery/tasks/${id}/accept`, { method: 'POST' }),
+      request<DeliveryTask[]>(`/delivery/my-tasks${status ? `?status=${status}` : ''}`),
+    activeTask: () => request<DeliveryTask | null>('/delivery/active'),
+    acceptTask: (id: string) => request<DeliveryTask>(`/delivery/tasks/${id}/accept`, 'POST'),
     updateLocation: (id: string, lat: number, lng: number) =>
-      apiRequest(`/delivery/tasks/${id}/location`, { method: 'PATCH', body: JSON.stringify({ lat, lng }) }),
+      request<{ lat: number; lng: number; etaMinutes: number }>(
+        `/delivery/tasks/${id}/location`,
+        'PATCH',
+        { lat, lng },
+      ),
     updateStatus: (id: string, status: string) =>
-      apiRequest(`/delivery/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-    toggleAvailability: () => apiRequest('/delivery/toggle-availability', { method: 'POST' }),
-    earnings: () => apiRequest('/delivery/earnings'),
+      request<DeliveryTask>(`/delivery/tasks/${id}/status`, 'PATCH', { status }),
+    toggleAvailability: () =>
+      request<{ isAvailable: boolean }>('/delivery/toggle-availability', 'POST'),
+    earnings: () => request<Earnings>('/delivery/earnings'),
   },
-
-  // Reviews
   reviews: {
-    create: (data: any) => apiRequest('/reviews', { method: 'POST', body: JSON.stringify(data) }),
-    byStore: (storeId: string) => apiRequest(`/reviews/store/${storeId}`),
+    create: (data: ReviewInput) => request<Review>('/reviews', 'POST', data),
+    byStore: (storeId: string) => request<Review[]>(`/reviews/store/${storeId}`),
   },
-
-  // Promotions
   promotions: {
-    active: () => apiRequest('/promotions/active'),
+    active: () => request<Promotion[]>('/promotions/active'),
     validate: (code: string, orderTotal: number) =>
-      apiRequest('/promotions/validate', { method: 'POST', body: JSON.stringify({ code, orderTotal }) }),
+      request<PromotionValidation>('/promotions/validate', 'POST', { code, orderTotal }),
   },
-
-  // Users
   users: {
-    addresses: () => apiRequest('/users/addresses'),
-    createAddress: (data: any) => apiRequest('/users/addresses', { method: 'POST', body: JSON.stringify(data) }),
-    updateAddress: (id: string, data: any) =>
-      apiRequest(`/users/addresses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    deleteAddress: (id: string) => apiRequest(`/users/addresses/${id}`, { method: 'DELETE' }),
-    // Admin
+    addresses: () => request<Address[]>('/users/addresses'),
+    createAddress: (data: AddressInput) => request<Address>('/users/addresses', 'POST', data),
+    updateAddress: (id: string, data: Partial<AddressInput>) =>
+      request<Address>(`/users/addresses/${id}`, 'PATCH', data),
+    deleteAddress: (id: string) =>
+      request<{ deleted: boolean }>(`/users/addresses/${id}`, 'DELETE'),
     all: (page?: number, role?: string) =>
-      apiRequest(`/users?page=${page || 1}${role ? `&role=${role}` : ''}`),
-    getById: (id: string) => apiRequest(`/users/${id}`),
-    stats: () => apiRequest('/users/stats'),
-    toggleActive: (id: string) => apiRequest(`/users/${id}/toggle-active`, { method: 'PATCH' }),
+      request<PaginatedResponse<User>>(`/users?page=${page || 1}${role ? `&role=${role}` : ''}`),
+    getById: (id: string) => request<User>(`/users/${id}`),
+    stats: () => request<UserStats>('/users/stats'),
+    toggleActive: (id: string) => request<User>(`/users/${id}/toggle-active`, 'PATCH'),
   },
-
-  // Admin
   admin: {
-    dashboardStats: () => apiRequest('/admin/dashboard-stats'),
+    dashboardStats: () => request<DashboardStats>('/admin/dashboard-stats'),
   },
-
-  // Payments
   payments: {
-    createIntent: (orderId: string) => apiRequest('/payments/intent', { method: 'POST', body: JSON.stringify({ orderId }) }),
-  }
+    createIntent: (orderId: string) =>
+      request<PaymentIntentResult>('/payments/intent', 'POST', { orderId }),
+    createWalletIntent: (amount: number) =>
+      request<WalletIntentResult>('/payments/wallet-intent', 'POST', { amount }),
+  },
+  wallet: {
+    get: () => request<WalletDetails>('/wallet'),
+    topup: (amount: number, description?: string) =>
+      request<{ id: string; balance: number; currency: string; transaction: WalletTransaction }>(
+        '/wallet/topup',
+        'POST',
+        { amount, description },
+      ),
+  },
 };

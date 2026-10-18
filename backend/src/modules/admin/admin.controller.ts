@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { AdminService } from './admin.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
+import { AdminService } from './admin.service';
 
 @Controller('admin')
 @Roles(UserRole.ADMIN)

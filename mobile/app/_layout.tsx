@@ -1,10 +1,11 @@
+import '@/global.css';
+import '@/lib/location-task'; // Register background task
+import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
+import { AuthProvider, useAuth } from '@/providers/auth-provider';
+import { SocketProvider } from '@/providers/socket-provider';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { AuthProvider, useAuth } from '../src/providers/auth-provider';
-import { View, ActivityIndicator } from 'react-native';
-import '../src/lib/location-task'; // Register background task
-import { registerForPushNotificationsAsync } from '../src/lib/push-notifications';
-
+import { ActivityIndicator, View } from 'react-native';
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
@@ -12,17 +13,14 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(token => {
-      // In a real app, send this token to the backend
-      if (token) console.log('Initialized Push Notifications', token);
-    });
+    void registerForPushNotificationsAsync();
   }, []);
 
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    
+
     if (!user && !inAuthGroup) {
       // Redirect to login if not logged in
       router.replace('/(auth)/login');
@@ -33,18 +31,26 @@ function RootLayoutNav() {
           router.replace('/(customer)/home');
         } else if (user.role === 'DELIVERY_PARTNER') {
           router.replace('/(delivery)/dashboard');
+        } else if (user.role === 'SHOPKEEPER' || user.role === 'ADMIN') {
+          router.replace('/(merchant)/orders');
         } else {
-          // Fallback or shopkeeper/admin not supported in MVP app
-          router.replace('/(auth)/login');
+          router.replace('/(customer)/home');
         }
       }
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#FAFAF8',
+        }}
+      >
+        <ActivityIndicator size="large" color="#0A0A0A" />
       </View>
     );
   }
@@ -55,7 +61,9 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <SocketProvider>
+        <RootLayoutNav />
+      </SocketProvider>
     </AuthProvider>
   );
 }

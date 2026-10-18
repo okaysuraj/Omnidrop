@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body } from '@nestjs/common';
-import { CartService } from './cart.service';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
 import { User } from '../../database/entities';
+import { CartService } from './cart.service';
 
 @Controller('cart')
 @Roles(UserRole.CUSTOMER)

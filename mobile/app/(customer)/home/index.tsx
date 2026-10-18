@@ -1,151 +1,750 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { api } from '../../src/lib/api';
-import { useAuth } from '../../src/providers/auth-provider';
+import {
+  BrutalBadge,
+  BrutalBottomNav,
+  BrutalCard,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import { useAuth } from '@/providers/auth-provider';
+import type * as Models from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CustomerHome() {
-  const [stores, setStores] = useState<any[]>([]);
+  const [stores, setStores] = useState<Models.StoreWithDistance[]>([]);
+  const [categories, setCategories] = useState<Models.Category[]>([]);
+  const [cartCount, setCartCount] = useState(0);
+  const [defaultAddress, setDefaultAddress] = useState<Models.Address | null>(null);
   const [loading, setLoading] = useState(true);
-  const { logout } = useAuth();
+  const [filter, setFilter] = useState<'ALL' | 'FAST' | 'TOP_RATED'>('ALL');
+  const { user } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    const loadStores = async () => {
-      try {
-        const data = await api.stores.nearby(28.7041, 77.1025);
-        setStores(data?.items || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const loadHomeData = async () => {
+    try {
+      const [storesData, catsData, cartData, addressData] = await Promise.all([
+        api.stores.nearby(28.6139, 77.209, 25).catch(() => []),
+        api.products.categories().catch(() => []),
+        api.cart.get().catch(() => null),
+        api.users.getAddresses().catch(() => []),
+      ]);
+
+      const storeList = storesData;
+      setStores(storeList);
+      setCategories(catsData);
+
+      if (cartData?.items) {
+        const totalItems = cartData.items.reduce(
+          (sum: number, item) => sum + (item.quantity || 1),
+          0,
+        );
+        setCartCount(totalItems);
       }
-    };
-    loadStores();
+
+      if (Array.isArray(addressData) && addressData.length > 0) {
+        const def = addressData.find((a) => a.isDefault) || addressData[0];
+        setDefaultAddress(def);
+      }
+    } catch (err) {
+      console.error('Home load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHomeData();
   }, []);
 
+  const filteredStores = stores.filter((store) => {
+    if (filter === 'FAST') return (store.radiusKm || 5) <= 5;
+    if (filter === 'TOP_RATED') return Number(store.rating || 0) >= 4.5;
+    return true;
+  });
+
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {/* Top Navigation Bar */}
-      <View className="flex-row items-center justify-between px-5 h-16 bg-surface shadow-sm border-b border-surface-variant">
-        <View className="flex-row items-center flex-1 mr-4">
-          <MaterialIcons name="bolt" size={24} color="#006e24" />
-          <View className="ml-2 flex-1">
-            <Text className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Deliver to Home</Text>
-            <Text className="text-[14px] text-on-surface" numberOfLines={1}>1248 Oakwood Avenue, Downtown Core</Text>
-          </View>
-        </View>
-        <View className="flex-row items-center space-x-4">
-          <TouchableOpacity onPress={() => router.push('/(customer)/search')} className="p-2 rounded-full active:bg-surface-container-high">
-            <MaterialIcons name="search" size={24} color="#3b4b39" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/(customer)/cart')} className="p-2 rounded-full active:bg-surface-container-high relative">
-            <MaterialIcons name="shopping-cart" size={24} color="#006e24" />
-            <View className="absolute top-1 right-1 bg-primary h-4 w-4 rounded-full items-center justify-center border border-surface">
-              <Text className="text-white text-[10px] font-bold">3</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ 12-MIN DISPATCH · 38/38 MICRO-HUBS OPERATIONAL" />
+
+      {/* Top Header */}
+      <View
+        style={{
+          backgroundColor: BrutalColors.white,
+          borderBottomWidth: 2,
+          borderBottomColor: BrutalColors.black,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/(customer)/addresses')}
+          style={{ flex: 1, marginRight: 12 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 1.5,
+                borderColor: BrutalColors.black,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 6,
+              }}
+            >
+              <MaterialIcons name="bolt" size={13} color={BrutalColors.black} />
             </View>
+            <Text
+              style={{
+                fontSize: 9,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: '#666',
+                letterSpacing: 0.5,
+              }}
+            >
+              {defaultAddress ? `CORRIDOR: ${defaultAddress.label}` : 'SELECT DISPATCH NODE'}
+            </Text>
+          </View>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+              marginTop: 1,
+            }}
+            numberOfLines={1}
+          >
+            {defaultAddress
+              ? `${defaultAddress.addressLine1 || defaultAddress.city}`
+              : 'Indiranagar 100ft Road ▾'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Action Icons */}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/(customer)/search/global')}
+            style={[
+              {
+                width: 36,
+                height: 36,
+                backgroundColor: BrutalColors.white,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              BrutalShadow.sm,
+            ]}
+          >
+            <MaterialIcons name="search" size={20} color={BrutalColors.black} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/(customer)/cart')}
+            style={[
+              {
+                width: 36,
+                height: 36,
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              },
+              BrutalShadow.sm,
+            ]}
+          >
+            <MaterialIcons name="shopping-bag" size={18} color={BrutalColors.black} />
+            {cartCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: BrutalColors.black,
+                  borderWidth: 1.5,
+                  borderColor: BrutalColors.yellow,
+                  minWidth: 17,
+                  height: 17,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 2,
+                }}
+              >
+                <Text style={{ color: BrutalColors.yellow, fontSize: 9, fontWeight: '900' }}>
+                  {cartCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
-        {/* Promo Slider */}
-        <TouchableOpacity className="w-full h-48 rounded-xl overflow-hidden mb-8 relative active:opacity-95">
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800' }} 
-            className="w-full h-full absolute"
-          />
-          <View className="absolute inset-0 bg-black/40 p-6 justify-center">
-            <View className="bg-primary-container px-3 py-1 rounded-full self-start mb-2">
-              <Text className="text-on-primary-container text-xs font-bold">LIMITED OFFER</Text>
-            </View>
-            <Text className="text-white text-2xl font-bold mb-3 w-2/3">50% OFF on Fresh Grocery</Text>
-            <View className="bg-primary-container py-2 px-4 rounded-xl self-start">
-              <Text className="text-on-primary-container font-bold">Order Now</Text>
-            </View>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: cartCount > 0 ? 80 : 30 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Brutalist Flash Card */}
+        <BrutalCard bg={BrutalColors.yellow} style={{ padding: 18, marginBottom: 20 }} shadow="md">
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 8,
+            }}
+          >
+            <BrutalBadge label="// HYPERLOCAL SPEED" variant="black" />
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+              }}
+            >
+              10-20 MIN DROP
+            </Text>
           </View>
-        </TouchableOpacity>
 
-        {/* Explore Categories */}
-        <View className="mb-10">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-bold text-on-surface">Explore Categories</Text>
-            <Text className="text-primary font-bold">View All</Text>
-          </View>
-          
-          <View className="flex-row flex-wrap justify-between gap-y-3">
-            <TouchableOpacity onPress={() => router.push('/(customer)/products')} className="w-[48%] h-32 bg-primary-container/20 rounded-xl p-4 border border-primary/10 justify-between">
-              <View>
-                <Text className="text-on-primary-container text-lg font-bold">Grocery</Text>
-                <Text className="text-on-surface-variant text-xs">Daily Essentials</Text>
-              </View>
-              <View className="items-end">
-                <MaterialIcons name="local-grocery-store" size={32} color="#006e24" />
-              </View>
+          <Text
+            style={{
+              fontSize: 23,
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+              lineHeight: 27,
+              letterSpacing: -0.5,
+              marginBottom: 6,
+            }}
+          >
+            Neighborhood Stores Direct to Doorstep
+          </Text>
+
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: '#1A1A1A',
+              marginBottom: 14,
+              lineHeight: 17,
+            }}
+          >
+            Zero surge pricing. Real-time physical inventory synced directly with registered
+            micro-hubs.
+          </Text>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/(customer)/products')}
+            style={[
+              {
+                backgroundColor: BrutalColors.black,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+              },
+              BrutalShadow.sm,
+            ]}
+          >
+            <Text
+              style={{
+                color: BrutalColors.white,
+                fontWeight: '900',
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+              }}
+            >
+              Browse Shelf Catalog →
+            </Text>
+          </TouchableOpacity>
+        </BrutalCard>
+
+        {/* Categories Horizontal Carousel */}
+        <View style={{ marginBottom: 22 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Categories
+              </Text>
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  backgroundColor: BrutalColors.yellow,
+                  borderWidth: 1.5,
+                  borderColor: BrutalColors.black,
+                  marginLeft: 6,
+                }}
+              />
+            </View>
+
+            <TouchableOpacity onPress={() => router.push('/(customer)/category')}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  textDecorationLine: 'underline',
+                  color: BrutalColors.black,
+                }}
+              >
+                View All →
+              </Text>
             </TouchableOpacity>
-
-            <View className="w-[48%] flex-col justify-between h-32">
-              <TouchableOpacity className="h-[48%] w-full bg-secondary-container/20 rounded-xl flex-row items-center justify-center border border-secondary/10">
-                <MaterialIcons name="medical-services" size={20} color="#575d78" />
-                <Text className="text-on-secondary-container font-bold ml-2">Pharmacy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity className="h-[48%] w-full bg-tertiary-container/20 rounded-xl flex-row items-center justify-center border border-tertiary/10">
-                <MaterialIcons name="restaurant" size={20} color="#a73a00" />
-                <Text className="text-on-tertiary-container font-bold ml-2">Meat</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity className="w-full h-16 bg-surface-container-high rounded-xl p-4 border border-surface-container flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <MaterialIcons name="eco" size={28} color="#006e24" />
-                <View className="ml-3">
-                  <Text className="font-bold text-on-surface">Fresh Fruits</Text>
-                  <Text className="text-xs text-on-surface-variant">Seasonal picks</Text>
-                </View>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color="#3b4b39" />
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Fastest Delivery */}
-        <View className="mb-10 -mx-5">
-          <View className="px-5 flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center">
-              <Text className="text-xl font-bold text-on-surface mr-2">Fastest Delivery</Text>
-              <View className="w-2 h-2 rounded-full bg-primary-container" />
-            </View>
-            <Text className="text-primary font-bold">See More</Text>
-          </View>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pl-5 pb-2">
-            {[1, 2, 3].map((item, idx) => (
-              <TouchableOpacity key={idx} onPress={() => router.push('/(customer)/stores/1')} className="w-64 bg-surface rounded-xl overflow-hidden shadow-sm border border-outline-variant/50 mr-4">
-                <View className="h-32 relative">
-                  <Image source={{ uri: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400' }} className="w-full h-full" />
-                  <View className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-lg flex-row items-center">
-                    <MaterialIcons name="timer" size={14} color="#006e24" />
-                    <Text className="text-[11px] font-bold ml-1">12 MIN</Text>
-                  </View>
-                </View>
-                <View className="p-4">
-                  <View className="flex-row justify-between items-center mb-1">
-                    <Text className="font-bold text-on-surface">Artisan Gourmet Deli</Text>
-                    <View className="flex-row items-center">
-                      <MaterialIcons name="star" size={12} color="#a73a00" />
-                      <Text className="font-bold text-on-surface-variant ml-1 text-xs">4.8</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
+          >
+            {categories.length > 0
+              ? categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(customer)/products',
+                        params: { categoryId: cat.id },
+                      })
+                    }
+                    style={[
+                      {
+                        width: 88,
+                        backgroundColor: BrutalColors.white,
+                        borderWidth: 2,
+                        borderColor: BrutalColors.black,
+                        padding: 9,
+                        alignItems: 'center',
+                        marginRight: 10,
+                      },
+                      BrutalShadow.sm,
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        backgroundColor: BrutalColors.subtle,
+                        borderWidth: 1.5,
+                        borderColor: BrutalColors.black,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 6,
+                      }}
+                    >
+                      <MaterialIcons name="local-mall" size={22} color={BrutalColors.black} />
                     </View>
-                  </View>
-                  <Text className="text-xs text-on-surface-variant">Sandwiches • Salads • $2.99 Del</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            <View className="w-5" />
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        color: BrutalColors.black,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              : ['Produce', 'Bakery', 'Dairy', 'Snacks', 'Beverages'].map((name, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/(customer)/products')}
+                    style={[
+                      {
+                        width: 88,
+                        backgroundColor: BrutalColors.white,
+                        borderWidth: 2,
+                        borderColor: BrutalColors.black,
+                        padding: 9,
+                        alignItems: 'center',
+                        marginRight: 10,
+                      },
+                      BrutalShadow.sm,
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        backgroundColor: BrutalColors.subtle,
+                        borderWidth: 1.5,
+                        borderColor: BrutalColors.black,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 6,
+                      }}
+                    >
+                      <MaterialIcons name="shopping-bag" size={22} color={BrutalColors.black} />
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        color: BrutalColors.black,
+                      }}
+                    >
+                      {name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
           </ScrollView>
         </View>
+
+        {/* Filter Pills for Stores */}
+        <View style={{ marginBottom: 12 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Nearby Micro-Hubs
+              </Text>
+              <BrutalBadge label="LIVE RADAR" variant="green" style={{ marginLeft: 8 }} />
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+            {[
+              { id: 'ALL', label: 'All Hubs' },
+              { id: 'FAST', label: '⚡ < 15 Min SLA' },
+              { id: 'TOP_RATED', label: '⭐ Top Rated 4.5+' },
+            ].map((f) => {
+              const isSelected = filter === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  onPress={() => setFilter(f.id as typeof filter)}
+                  activeOpacity={0.8}
+                  style={[
+                    {
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderWidth: 1.5,
+                      borderColor: BrutalColors.black,
+                      backgroundColor: isSelected ? BrutalColors.yellow : BrutalColors.white,
+                    },
+                    isSelected ? BrutalShadow.sm : {},
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      color: BrutalColors.black,
+                    }}
+                  >
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color={BrutalColors.black}
+              style={{ marginVertical: 20 }}
+            />
+          ) : filteredStores.length > 0 ? (
+            <View style={{ gap: 14 }}>
+              {filteredStores.map((store) => (
+                <BrutalCard key={store.id} style={{ overflow: 'hidden' }}>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => router.push(`/(customer)/stores/${store.id}`)}
+                  >
+                    <View
+                      style={{
+                        height: 130,
+                        position: 'relative',
+                        borderBottomWidth: 2,
+                        borderBottomColor: BrutalColors.black,
+                      }}
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            store.imageUrl ||
+                            'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600',
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                      <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                        <BrutalBadge label="⚡ 12-18 MIN" variant="yellow" />
+                      </View>
+                      {store.isVerified && (
+                        <View style={{ position: 'absolute', top: 8, left: 8 }}>
+                          <BrutalBadge label="VERIFIED HUB" variant="green" />
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={{ padding: 14 }}>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            color: BrutalColors.black,
+                            flex: 1,
+                            marginRight: 8,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {store.name}
+                        </Text>
+                        <View
+                          style={{
+                            borderWidth: 1.5,
+                            borderColor: BrutalColors.black,
+                            backgroundColor: BrutalColors.yellow,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <MaterialIcons name="star" size={12} color={BrutalColors.black} />
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: '900',
+                              color: BrutalColors.black,
+                              marginLeft: 2,
+                            }}
+                          >
+                            {store.rating ? Number(store.rating).toFixed(1) : '4.8'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: '#666',
+                          textTransform: 'uppercase',
+                          marginBottom: 8,
+                        }}
+                        numberOfLines={1}
+                      >
+                        📍 {store.address || 'Hyperlocal Corridor'} · Radius: {store.radiusKm || 5}{' '}
+                        km
+                      </Text>
+
+                      <View
+                        style={{
+                          borderTopWidth: 1.5,
+                          borderTopColor: '#EEEEEE',
+                          paddingTop: 8,
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '800',
+                            color: '#008855',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          ₹0 Delivery &gt; ₹199
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            color: BrutalColors.black,
+                          }}
+                        >
+                          Enter Shelf →
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </BrutalCard>
+              ))}
+            </View>
+          ) : (
+            <BrutalCard style={{ padding: 22, alignItems: 'center' }}>
+              <MaterialIcons name="storefront" size={36} color={BrutalColors.black} />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  marginTop: 8,
+                }}
+              >
+                Corridor Hubs Ready
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: '#666',
+                  textAlign: 'center',
+                  marginTop: 4,
+                  marginBottom: 12,
+                }}
+              >
+                Browse our central product shelf with immediate neighborhood fulfillment.
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(customer)/products')}
+                style={{
+                  borderWidth: 2,
+                  borderColor: BrutalColors.black,
+                  backgroundColor: BrutalColors.yellow,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ fontWeight: '900', fontSize: 11, textTransform: 'uppercase' }}>
+                  Explore Catalog →
+                </Text>
+              </TouchableOpacity>
+            </BrutalCard>
+          )}
+        </View>
       </ScrollView>
+
+      {/* Floating Bottom Tote Banner */}
+      {cartCount > 0 && (
+        <View style={{ position: 'absolute', bottom: 58, left: 16, right: 16 }}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push('/(customer)/cart')}
+            style={[
+              {
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              },
+              BrutalShadow.md,
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  backgroundColor: BrutalColors.black,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  marginRight: 8,
+                }}
+              >
+                <Text style={{ color: BrutalColors.yellow, fontWeight: '900', fontSize: 11 }}>
+                  {cartCount} ITEMS
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                ACTIVE TOTE MANIFEST
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                  marginRight: 4,
+                }}
+              >
+                Review
+              </Text>
+              <MaterialIcons name="arrow-forward" size={15} color={BrutalColors.black} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Integrated BrutalBottomNav */}
+      <BrutalBottomNav currentTab="home" cartCount={cartCount} />
     </SafeAreaView>
   );
 }

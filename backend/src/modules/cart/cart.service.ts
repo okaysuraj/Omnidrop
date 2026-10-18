@@ -1,12 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CartItem, Inventory } from '../../database/entities';
 
 @Injectable()
 export class CartService {
-  private readonly logger = new Logger(CartService.name);
-
   constructor(
     @InjectRepository(CartItem)
     private cartItemRepository: Repository<CartItem>,
@@ -20,28 +18,48 @@ export class CartService {
     });
 
     if (items.length === 0) {
-      return { items: [], storeId: null, subtotal: 0, deliveryFee: 0, discount: 0, total: 0 };
+      return {
+        items: [],
+        storeId: null,
+        subtotal: 0,
+        deliveryFee: 0,
+        discount: 0,
+        tax: 0,
+        total: 0,
+      };
     }
 
     const storeId = items[0].storeId;
+    const productIds = items.map((i) => i.productId);
 
-    // Get inventory details for each cart item
-    const enrichedItems = await Promise.all(
-      items.map(async (item) => {
-        const inventory = await this.inventoryRepository.findOne({
-          where: { storeId: item.storeId, productId: item.productId },
-          relations: { product: { category: true } },
-        });
-        return {
-          ...item,
-          product: inventory?.product,
-          inventory,
-          effectivePrice: inventory?.priceOverride || inventory?.product?.sellingPrice || 0,
-        };
-      }),
+    // Batch query inventory to eliminate N+1 database queries
+    const inventories = await this.inventoryRepository.find({
+      where: {
+        storeId,
+        productId: In(productIds),
+      },
+      relations: { product: { category: true } },
+    });
+
+    const inventoryMap = new Map<string, Inventory>();
+    for (const inv of inventories) {
+      inventoryMap.set(inv.productId, inv);
+    }
+
+    const enrichedItems = items.map((item) => {
+      const inventory = inventoryMap.get(item.productId);
+      return {
+        ...item,
+        product: inventory?.product,
+        inventory,
+        effectivePrice: inventory?.priceOverride || inventory?.product?.sellingPrice || 0,
+      };
+    });
+
+    const subtotal = enrichedItems.reduce(
+      (sum, item) => sum + item.effectivePrice * item.quantity,
+      0,
     );
-
-    const subtotal = enrichedItems.reduce((sum, item) => sum + item.effectivePrice * item.quantity, 0);
     const deliveryFee = subtotal > 500 ? 0 : 30; // Free delivery over 500
 
     return {
@@ -50,38 +68,54 @@ export class CartService {
       subtotal: parseFloat(subtotal.toFixed(2)),
       deliveryFee,
       discount: 0,
+      tax: 0,
       total: parseFloat((subtotal + deliveryFee).toFixed(2)),
     };
   }
 
   async addItem(userId: string, storeId: string, productId: string, quantity: number) {
-    // Check if user has items from a different store
     const existingItems = await this.cartItemRepository.find({ where: { userId } });
 
-    if (existingItems.length > 0 && existingItems[0].storeId !== storeId) {
-      throw new BadRequestException(
-        'Cart contains items from another store. Clear cart first.',
-      );
+    let resolvedStoreId = storeId;
+    if (!resolvedStoreId) {
+      if (existingItems.length > 0) {
+        resolvedStoreId = existingItems[0].storeId;
+      } else {
+        const availableInv = await this.inventoryRepository.findOne({
+          where: { productId, isVisible: true },
+        });
+        if (!availableInv || availableInv.stock < quantity) {
+          throw new BadRequestException('Product is currently out of stock');
+        }
+        resolvedStoreId = availableInv.storeId;
+      }
+    } else if (existingItems.length > 0 && existingItems[0].storeId !== resolvedStoreId) {
+      throw new BadRequestException('Cart contains items from another store. Clear cart first.');
     }
 
     // Check inventory
     const inventory = await this.inventoryRepository.findOne({
-      where: { storeId, productId, isVisible: true },
+      where: { storeId: resolvedStoreId, productId, isVisible: true },
     });
 
     if (!inventory || inventory.stock < quantity) {
-      throw new BadRequestException('Product not available or insufficient stock');
+      throw new BadRequestException('Product not available or insufficient stock in this hub');
     }
 
     // Upsert cart item
     let cartItem = await this.cartItemRepository.findOne({
-      where: { userId, storeId, productId },
+      where: { userId, storeId: resolvedStoreId, productId },
     });
 
     if (cartItem) {
       cartItem.quantity += quantity;
     } else {
-      cartItem = this.cartItemRepository.create({ userId, storeId, productId, quantity });
+      cartItem = this.cartItemRepository.create({
+        userId,
+        storeId: resolvedStoreId,
+        productId,
+        quantity,
+      });
     }
 
     await this.cartItemRepository.save(cartItem);
@@ -118,6 +152,6 @@ export class CartService {
 
   async clearCart(userId: string) {
     await this.cartItemRepository.delete({ userId });
-    return { items: [], storeId: null, subtotal: 0, deliveryFee: 0, discount: 0, total: 0 };
+    return { items: [], storeId: null, subtotal: 0, deliveryFee: 0, discount: 0, tax: 0, total: 0 };
   }
 }

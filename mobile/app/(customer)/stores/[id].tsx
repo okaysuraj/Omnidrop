@@ -1,220 +1,526 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { api } from '../../../src/lib/api';
+import {
+  BrutalBadge,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import type * as Models from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function StoreDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [store, setStore] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+  const storeId = id as string;
+  const [store, setStore] = useState<Models.Store | null>(null);
+  const [inventory, setInventory] = useState<Models.InventoryItem[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [addingId, setAddingId] = useState<string | null>(null);
+
+  const refreshCart = async () => {
+    try {
+      const cart = await api.cart.get();
+      if (cart?.items) {
+        const count = cart.items.reduce((acc: number, item) => acc + (item.quantity || 1), 0);
+        setCartCount(count);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     const fetchStoreDetails = async () => {
       try {
-        const storeData = await api.stores.byId(id as string);
+        const [storeData, invData] = await Promise.all([
+          api.stores.byId(storeId).catch(() => null),
+          api.inventory.byStore(storeId).catch(() => []),
+        ]);
         setStore(storeData);
-        const productsData = await api.products.search(''); // Load generic products for now
-        setProducts(productsData || []);
+
+        setInventory(invData);
+        await refreshCart();
       } catch (err) {
         console.error('Failed to load store details:', err);
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchStoreDetails();
-  }, [id]);
+    if (storeId) fetchStoreDetails();
+  }, [storeId]);
+
+  const handleAddToCart = async (item: Models.InventoryItem) => {
+    const prodId = item.productId || item.id || item.product?.id;
+    if (!prodId) return;
+    setAddingId(prodId);
+    try {
+      await api.cart.addItem({ productId: prodId, quantity: 1, storeId: storeId });
+      await refreshCart();
+    } catch (e) {
+      console.error('Failed to add to cart:', e);
+    } finally {
+      setAddingId(null);
+    }
+  };
 
   if (loading) {
     return (
-      <View className="flex-1 bg-background justify-center items-center">
-        <ActivityIndicator size="large" color="#00e554" />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: BrutalColors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={BrutalColors.black} />
       </View>
     );
   }
 
   if (!store) {
     return (
-      <View className="flex-1 bg-background justify-center items-center">
-        <Text className="text-on-surface">Store not found.</Text>
-      </View>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: BrutalColors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}
+      >
+        <MaterialIcons name="store" size={48} color={BrutalColors.black} />
+        <Text
+          style={{ fontSize: 16, fontWeight: '900', textTransform: 'uppercase', marginTop: 12 }}
+        >
+          Store Hub Not Found
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            {
+              backgroundColor: BrutalColors.yellow,
+              borderWidth: 2,
+              borderColor: BrutalColors.black,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              marginTop: 16,
+            },
+            BrutalShadow.sm,
+          ]}
+        >
+          <Text
+            style={{
+              fontWeight: '900',
+              fontSize: 12,
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+            }}
+          >
+            Go Back
+          </Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
-  const seasonalProducts = products.filter(p => p.category === 'Seasonal Harvest');
-  const bakeryProducts = products.filter(p => p.category === 'Fresh Bakery');
-
   return (
-    <View className="flex-1 bg-background">
-      {/* Top AppBar */}
-      <View className="absolute top-0 w-full z-50 bg-surface shadow-sm flex-row justify-between items-center px-5 h-20 pt-8">
-        <View className="flex-row items-center space-x-4">
-          <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <MaterialIcons name="arrow-back" size={24} color="#006e24" />
-          </TouchableOpacity>
-          <Text className="text-xl italic font-black text-primary">OmniDrop</Text>
-        </View>
-        <View className="flex-row items-center space-x-4">
-          <TouchableOpacity className="p-2">
-            <MaterialIcons name="bolt" size={24} color="#006e24" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/(customer)/cart')} className="p-2 relative">
-            <MaterialIcons name="shopping-cart" size={24} color="#006e24" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text={`⚡ 12-MIN DISPATCH · ${store.name?.toUpperCase()}`} />
+
+      {/* Header */}
+      <BrutalHeader
+        title={store.name}
+        subtitle="Micro-Hub Node"
+        rightAction={
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/(customer)/cart')}
+            style={[
+              {
+                width: 36,
+                height: 36,
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              },
+              BrutalShadow.sm,
+            ]}
+          >
+            <MaterialIcons name="shopping-bag" size={18} color={BrutalColors.black} />
             {cartCount > 0 && (
-              <View className="absolute top-0 right-0 bg-error w-4 h-4 rounded-full items-center justify-center">
-                <Text className="text-white text-[10px] font-bold">{cartCount}</Text>
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: BrutalColors.black,
+                  minWidth: 16,
+                  height: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 2,
+                }}
+              >
+                <Text style={{ color: BrutalColors.yellow, fontSize: 9, fontWeight: '900' }}>
+                  {cartCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
-      <ScrollView className="flex-1 mt-20" showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View className="h-64 w-full relative">
-          <Image source={{ uri: store?.image }} className="w-full h-full absolute" />
-          <View className="absolute inset-0 bg-black/40" />
-          <View className="absolute bottom-6 left-5 z-20">
-            <View className="bg-primary px-2 py-1 rounded-lg self-start mb-2">
-              <Text className="text-on-primary text-[10px] font-bold">PREMIUM</Text>
-            </View>
-            <Text className="text-white text-3xl font-bold mb-1">{store?.name}</Text>
-            <Text className="text-white/90 text-sm">Hyper-local • Artisanal • Zero Waste</Text>
-          </View>
-        </View>
+      <FlatList
+        data={inventory}
+        keyExtractor={(item, index) => item.id || item.productId || String(index)}
+        contentContainerStyle={{ padding: 16, paddingBottom: cartCount > 0 ? 80 : 30 }}
+        showsVerticalScrollIndicator={false}
+        windowSize={5}
+        maxToRenderPerBatch={8}
+        initialNumToRender={6}
+        removeClippedSubviews={true}
+        ListHeaderComponent={
+          <View style={{ marginBottom: 12 }}>
+            {/* Store Profile Card */}
+            <BrutalCard style={{ overflow: 'hidden', marginBottom: 16 }}>
+              <View
+                style={{
+                  height: 140,
+                  position: 'relative',
+                  borderBottomWidth: 2,
+                  borderBottomColor: BrutalColors.black,
+                }}
+              >
+                <Image
+                  source={{
+                    uri:
+                      store?.imageUrl ||
+                      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
+                  }}
+                  style={{ width: '100%', height: '100%' }}
+                />
+                <View style={{ position: 'absolute', top: 8, left: 8 }}>
+                  <BrutalBadge label="VERIFIED HUB" variant="green" />
+                </View>
+                <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                  <BrutalBadge label="⚡ 12-18 MIN" variant="yellow" />
+                </View>
+              </View>
 
-        {/* Store Info Section */}
-        <View className="px-5 py-4 bg-surface-container-lowest">
-          <View className="flex-row justify-between items-center bg-white p-4 rounded-xl border border-outline-variant/20 shadow-sm">
-            <View className="items-center flex-1 border-r border-outline-variant/30">
-              <View className="flex-row items-center">
-                <MaterialIcons name="star" size={16} color="#006e24" />
-                <Text className="font-bold ml-1">{store?.rating}</Text>
-              </View>
-              <Text className="text-[10px] text-on-surface-variant mt-1">{store?.reviews}+ Reviews</Text>
-            </View>
-            <View className="items-center flex-1 border-r border-outline-variant/30">
-              <View className="flex-row items-center">
-                <MaterialIcons name="schedule" size={16} color="#006e24" />
-                <Text className="font-bold ml-1">{store?.deliveryTime}</Text>
-              </View>
-              <Text className="text-[10px] text-on-surface-variant mt-1">Delivery Time</Text>
-            </View>
-            <View className="items-center flex-1">
-              <View className="flex-row items-center">
-                <MaterialIcons name="delivery-dining" size={16} color="#006e24" />
-                <Text className="font-bold ml-1">FREE</Text>
-              </View>
-              <Text className="text-[10px] text-on-surface-variant mt-1">On orders over $20</Text>
-            </View>
-          </View>
-        </View>
+              <View style={{ padding: 14 }}>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    color: BrutalColors.black,
+                  }}
+                >
+                  {store.name}
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: '#666', marginTop: 2 }}>
+                  📍 {store.address || 'Hyperlocal Corridor'}
+                </Text>
 
-        {/* Tabbed Navigation */}
-        <View className="bg-surface px-5 border-b border-outline-variant/20">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-            <View className="py-4 border-b-2 border-primary mr-8">
-              <Text className="font-bold text-primary">Menu</Text>
-            </View>
-            <TouchableOpacity className="py-4 mr-8">
-              <Text className="font-bold text-on-surface-variant">Reviews</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="py-4 mr-8">
-              <Text className="font-bold text-on-surface-variant">Store Info</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="py-4 mr-8">
-              <Text className="font-bold text-on-surface-variant">Offers</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+                {/* Tri-stat Bar */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    borderWidth: 2,
+                    borderColor: BrutalColors.black,
+                    backgroundColor: BrutalColors.subtle,
+                    marginTop: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      alignItems: 'center',
+                      borderRightWidth: 2,
+                      borderRightColor: BrutalColors.black,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        color: '#666',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Rating
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '900',
+                        color: BrutalColors.black,
+                        marginTop: 1,
+                      }}
+                    >
+                      ⭐ {store.rating ? Number(store.rating).toFixed(1) : '4.9'}
+                    </Text>
+                  </View>
 
-        {/* Product List */}
-        <View className="px-5 pt-4 pb-32">
-          {/* Category: Seasonal Harvest */}
-          <View className="mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <View className="border-l-4 border-primary pl-2">
-                <Text className="text-lg font-bold text-on-surface">Seasonal Harvest</Text>
-              </View>
-              <Text className="text-xs text-on-surface-variant">{seasonalProducts.length} Items</Text>
-            </View>
-            
-            <View className="flex-col space-y-4 gap-y-4">
-              {seasonalProducts.map(product => (
-                <View key={product.id} className="bg-surface-container-lowest rounded-xl p-4 flex-row shadow-sm border border-outline-variant/10">
-                  <Image source={{ uri: product.image }} className="w-24 h-24 rounded-lg bg-surface-container" />
-                  <View className="flex-1 ml-4 justify-between">
-                    <View>
-                      <Text className="font-bold text-on-surface text-base" numberOfLines={1}>{product.name}</Text>
-                      <Text className="text-xs text-on-surface-variant mt-1" numberOfLines={2}>{product.desc}</Text>
-                    </View>
-                    <View className="flex-row justify-between items-end mt-2">
-                      <Text className="text-lg font-bold text-primary">${product.price}</Text>
-                      <TouchableOpacity onPress={() => setCartCount(c => c + 1)} className="bg-primary-container w-10 h-10 rounded-full items-center justify-center">
-                        <MaterialIcons name="add" size={24} color="#005319" />
-                      </TouchableOpacity>
-                    </View>
+                  <View
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      alignItems: 'center',
+                      borderRightWidth: 2,
+                      borderRightColor: BrutalColors.black,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        color: '#666',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Target Sla
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '900',
+                        color: BrutalColors.black,
+                        marginTop: 1,
+                      }}
+                    >
+                      12-18m
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '900',
+                        color: '#666',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Delivery
+                    </Text>
+                    <Text
+                      style={{ fontSize: 13, fontWeight: '900', color: '#008855', marginTop: 1 }}
+                    >
+                      ₹0 &gt; ₹199
+                    </Text>
                   </View>
                 </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Category: Fresh Bakery */}
-          <View className="mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <View className="border-l-4 border-primary pl-2">
-                <Text className="text-lg font-bold text-on-surface">Fresh Bakery</Text>
               </View>
-              <Text className="text-xs text-on-surface-variant">{bakeryProducts.length} Items</Text>
-            </View>
-            
-            <View className="flex-col space-y-4 gap-y-4">
-              {bakeryProducts.map(product => (
-                <View key={product.id} className="bg-surface-container-lowest rounded-xl p-4 flex-row shadow-sm border border-outline-variant/10">
-                  <Image source={{ uri: product.image }} className="w-24 h-24 rounded-lg bg-surface-container" />
-                  <View className="flex-1 ml-4 justify-between">
-                    <View>
-                      <Text className="font-bold text-on-surface text-base" numberOfLines={1}>{product.name}</Text>
-                      <Text className="text-xs text-on-surface-variant mt-1" numberOfLines={2}>{product.desc}</Text>
-                    </View>
-                    <View className="flex-row justify-between items-end mt-2">
-                      <Text className="text-lg font-bold text-primary">${product.price}</Text>
-                      <TouchableOpacity onPress={() => setCartCount(c => c + 1)} className="bg-primary-container w-10 h-10 rounded-full items-center justify-center">
-                        <MaterialIcons name="add" size={24} color="#005319" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              ))}
+            </BrutalCard>
+
+            {/* Shelf Inventory Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Available Shelf SKUs ({inventory.length})
+              </Text>
+              <BrutalBadge label="LIVE INVENTORY" variant="green" />
             </View>
           </View>
-        </View>
-      </ScrollView>
+        }
+        renderItem={({ item }) => {
+          const prod = item.product;
+          const price = item.priceOverride ?? prod?.sellingPrice ?? 0;
+          const prodId = item.productId || item.id;
 
-      {/* Sticky Cart Bar */}
+          return (
+            <BrutalCard
+              style={{
+                padding: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(customer)/products/[id]',
+                    params: { id: prodId, storeId },
+                  })
+                }
+                style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}
+              >
+                <Image
+                  source={{
+                    uri:
+                      prod?.images?.[0] ||
+                      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200',
+                  }}
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderWidth: 1.5,
+                    borderColor: BrutalColors.black,
+                    marginRight: 10,
+                  }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      color: BrutalColors.black,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {prod?.name}
+                  </Text>
+                  <Text
+                    style={{ fontSize: 10, fontWeight: '700', color: '#666', marginTop: 1 }}
+                    numberOfLines={1}
+                  >
+                    Per {prod?.unit || prod?.weight || 'pack'} · In Stock ({item.stock ?? 50})
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '900',
+                      color: BrutalColors.black,
+                      marginTop: 3,
+                    }}
+                  >
+                    ₹{Number(price).toFixed(0)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleAddToCart(item)}
+                disabled={addingId === prodId}
+                activeOpacity={0.8}
+                style={[
+                  {
+                    backgroundColor: BrutalColors.yellow,
+                    borderWidth: 2,
+                    borderColor: BrutalColors.black,
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  },
+                  BrutalShadow.sm,
+                ]}
+              >
+                {addingId === prodId ? (
+                  <ActivityIndicator size="small" color={BrutalColors.black} />
+                ) : (
+                  <>
+                    <MaterialIcons name="add" size={16} color={BrutalColors.black} />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        color: BrutalColors.black,
+                        marginLeft: 2,
+                      }}
+                    >
+                      Add
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </BrutalCard>
+          );
+        }}
+      />
+
+      {/* Floating Bottom Tote Banner */}
       {cartCount > 0 && (
-        <View className="absolute bottom-5 left-5 right-5 z-[60]">
-          <TouchableOpacity onPress={() => router.push('/(customer)/cart')} className="bg-inverse-surface rounded-2xl p-4 flex-row items-center justify-between shadow-lg">
-            <View className="flex-row items-center space-x-4 gap-4">
-              <View className="bg-primary-container w-10 h-10 rounded-xl items-center justify-center">
-                <MaterialIcons name="shopping-bag" size={20} color="#005319" />
+        <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push('/(customer)/cart')}
+            style={[
+              {
+                backgroundColor: BrutalColors.yellow,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              },
+              BrutalShadow.md,
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  backgroundColor: BrutalColors.black,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  marginRight: 8,
+                }}
+              >
+                <Text style={{ color: BrutalColors.yellow, fontWeight: '900', fontSize: 11 }}>
+                  {cartCount} ITEMS
+                </Text>
               </View>
-              <View>
-                <Text className="font-bold text-white">{cartCount} Items selected</Text>
-                <Text className="text-xs text-white/70">Tap to view cart</Text>
-              </View>
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                ORDER MANIFEST
+              </Text>
             </View>
-            <View className="bg-primary px-4 py-2 rounded-xl flex-row items-center">
-              <Text className="font-bold text-on-primary mr-1">View Cart</Text>
-              <MaterialIcons name="chevron-right" size={16} color="#fff" />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontWeight: '900',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                  marginRight: 4,
+                }}
+              >
+                Review
+              </Text>
+              <MaterialIcons name="arrow-forward" size={15} color={BrutalColors.black} />
             </View>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }

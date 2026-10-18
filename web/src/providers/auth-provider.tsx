@@ -1,30 +1,22 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { api } from '@/lib/api';
+import { getErrorCode, getErrorMessage } from '@/lib/errors';
 import {
   auth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  FirebaseUser,
+  onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
-  FirebaseUser,
+  signInWithEmailAndPassword,
 } from '@/lib/firebase';
-import { api } from '@/lib/api';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
-export interface AppUser {
-  id: string;
-  firebaseUid: string;
-  email: string;
-  fullName: string;
-  phone?: string;
-  avatarUrl?: string;
-  role: 'CUSTOMER' | 'SHOPKEEPER' | 'DELIVERY_PARTNER' | 'ADMIN';
-  isVerified: boolean;
-  isActive: boolean;
-  isAvailable?: boolean;
-}
+import type { User } from '@/types';
+
+export type AppUser = User;
 
 interface AuthContextType {
   user: AppUser | null;
@@ -61,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         try {
           const token = await fbUser.getIdToken();
-          const profile = await api.auth.login(token) as any;
+          const profile = await api.auth.login(token);
           setUser(profile);
         } catch {
           // User exists in Firebase but not in backend — likely needs to register
@@ -83,21 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      
+
       if (!cred.user.emailVerified) {
         await sendEmailVerification(cred.user);
         await firebaseSignOut(auth);
-        throw new Error('Please verify your email before logging in. A new verification link has been sent to your email.');
+        throw new Error(
+          'Please verify your email before logging in. A new verification link has been sent to your email.',
+        );
       }
-      
+
       const token = await cred.user.getIdToken();
-      const profile = await api.auth.login(token) as any;
+      const profile = await api.auth.login(token);
       setUser(profile);
       setFirebaseUser(cred.user);
-    } catch (err: any) {
-      const message = err.code === 'auth/invalid-credential'
-        ? 'Invalid email or password. Please sign up if you do not have an account.'
-        : err.message || 'Login failed';
+    } catch (err) {
+      const message =
+        getErrorCode(err) === 'auth/invalid-credential'
+          ? 'Invalid email or password. Please sign up if you do not have an account.'
+          : getErrorMessage(err) || 'Login failed';
       setError(message);
       throw err;
     } finally {
@@ -105,36 +100,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, fullName: string, role = 'CUSTOMER') => {
-    setError(null);
-    setLoading(true);
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(cred.user);
-      const token = await cred.user.getIdToken();
+  const register = useCallback(
+    async (email: string, password: string, fullName: string, role = 'CUSTOMER') => {
+      setError(null);
+      setLoading(true);
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(cred.user);
+        const token = await cred.user.getIdToken();
 
-      const profile = await api.auth.register({
-        firebaseToken: token,
-        email,
-        fullName,
-        role,
-      }) as any;
+        await api.auth.register({
+          firebaseToken: token,
+          email,
+          fullName,
+          role,
+        });
 
-      await firebaseSignOut(auth);
-      // We don't set user, forcing them to login after verification
-      setUser(null);
-      setFirebaseUser(null);
-      // We could throw a special error or just let the caller handle success
-    } catch (err: any) {
-      const message = err.code === 'auth/email-already-in-use'
-        ? 'Email is already registered'
-        : err.message || 'Registration failed';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        await firebaseSignOut(auth);
+        // Email verification is required before starting a signed-in session.
+        setUser(null);
+        setFirebaseUser(null);
+      } catch (err) {
+        const message =
+          getErrorCode(err) === 'auth/email-already-in-use'
+            ? 'Email is already registered'
+            : getErrorMessage(err) || 'Registration failed';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     await firebaseSignOut(auth);
@@ -150,7 +148,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, firebaseUser, loading, error, login, register, logout, resetPassword, clearError }}
+      value={{
+        user,
+        firebaseUser,
+        loading,
+        error,
+        login,
+        register,
+        logout,
+        resetPassword,
+        clearError,
+      }}
     >
       {children}
     </AuthContext.Provider>

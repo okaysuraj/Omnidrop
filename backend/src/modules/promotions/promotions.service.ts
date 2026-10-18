@@ -1,13 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { PromotionType } from '../../common/enums';
 import { Promotion } from '../../database/entities';
 
 @Injectable()
 export class PromotionsService {
-  constructor(
-    @InjectRepository(Promotion) private promotionRepository: Repository<Promotion>,
-  ) {}
+  constructor(@InjectRepository(Promotion) private promotionRepository: Repository<Promotion>) {}
 
   async create(data: Partial<Promotion>) {
     const promo = this.promotionRepository.create(data);
@@ -49,9 +48,8 @@ export class PromotionsService {
       throw new BadRequestException(`Minimum order of ₹${promo.minOrder} required`);
     }
 
-    let discount = promo.type === 'PERCENTAGE'
-      ? (orderTotal * promo.value) / 100
-      : promo.value;
+    let discount =
+      promo.type === PromotionType.PERCENTAGE ? (orderTotal * promo.value) / 100 : promo.value;
 
     if (promo.maxDiscount && discount > promo.maxDiscount) {
       discount = promo.maxDiscount;

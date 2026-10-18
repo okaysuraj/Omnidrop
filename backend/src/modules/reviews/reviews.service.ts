@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Review, Store, Order } from '../../database/entities';
 import { OrderStatus } from '../../common/enums';
+import { Order, Review, Store } from '../../database/entities';
 
 @Injectable()
 export class ReviewsService {
@@ -12,18 +12,22 @@ export class ReviewsService {
     @InjectRepository(Order) private orderRepository: Repository<Order>,
   ) {}
 
-  async create(userId: string, data: {
-    orderId: string;
-    storeRating?: number;
-    riderRating?: number;
-    comment?: string;
-  }) {
+  async create(
+    userId: string,
+    data: {
+      orderId: string;
+      storeRating?: number;
+      riderRating?: number;
+      comment?: string;
+    },
+  ) {
     const order = await this.orderRepository.findOne({
       where: { id: data.orderId, userId },
       relations: { deliveryTask: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status !== OrderStatus.DELIVERED) throw new BadRequestException('Can only review delivered orders');
+    if (order.status !== OrderStatus.DELIVERED)
+      throw new BadRequestException('Can only review delivered orders');
 
     const existing = await this.reviewRepository.findOne({ where: { orderId: data.orderId } });
     if (existing) throw new BadRequestException('Review already submitted');
@@ -41,7 +45,9 @@ export class ReviewsService {
       const store = await this.storeRepository.findOne({ where: { id: order.storeId } });
       if (store) {
         const newTotal = store.totalRatings + 1;
-        store.rating = parseFloat(((store.rating * store.totalRatings + data.storeRating) / newTotal).toFixed(2));
+        store.rating = parseFloat(
+          ((store.rating * store.totalRatings + data.storeRating) / newTotal).toFixed(2),
+        );
         store.totalRatings = newTotal;
         await this.storeRepository.save(store);
       }

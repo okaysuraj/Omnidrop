@@ -1,13 +1,13 @@
-import { initializeApp, getApps } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import {
-  getAuth,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
+  User as FirebaseUser,
+  getAuth,
+  onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
-  onAuthStateChanged,
-  User as FirebaseUser,
+  signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -27,11 +27,11 @@ export {
   app,
   auth,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
+  onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
-  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
 };
 
 export type { FirebaseUser };

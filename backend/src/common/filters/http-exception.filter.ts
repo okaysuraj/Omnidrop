@@ -1,7 +1,7 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
@@ -17,8 +17,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
-    let errors: any = undefined;
+    let message: string | string[] = 'Internal server error';
+    let errors: unknown = undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -26,12 +26,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (typeof res === 'string') {
         message = res;
       } else if (typeof res === 'object') {
-        message = (res as any).message || message;
-        errors = (res as any).errors;
+        const body = res as { message?: string | string[]; errors?: unknown };
+        message = body.message || message;
+        errors = body.errors;
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
-      message = exception.message;
+      message = process.env.NODE_ENV === 'production' ? 'Internal server error' : exception.message;
+    }
+
+    if (status === HttpStatus.INTERNAL_SERVER_ERROR && process.env.NODE_ENV === 'production') {
+      message = 'Internal server error';
+      errors = undefined;
     }
 
     response.status(status).json({

@@ -1,75 +1,54 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { auth } from '@/lib/firebase';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { io, type Socket } from 'socket.io-client';
 import { useAuth } from './auth-provider';
-import { auth } from '../lib/firebase';
 
-interface SocketContextType {
+interface SocketContextValue {
   socket: Socket | null;
   connected: boolean;
 }
-
-const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  connected: false,
-});
-
+const SocketContext = createContext<SocketContextValue>({ socket: null, connected: false });
 export const useSocket = () => useContext(SocketContext);
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
+  const userId = user?.id;
+  const [connection, setConnection] = useState<(SocketContextValue & { userId: string }) | null>(
+    null,
+  );
 
   useEffect(() => {
-    // Only connect if the user is logged in
-    if (!user) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setConnected(false);
-      }
-      return;
-    }
-
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:4000';
-    
-    // We pass the token in the auth payload or headers depending on socket.io configuration
-    const socketInstance = io(socketUrl, {
-      path: '/socket.io',
+    if (!userId) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+    const socket = io(apiUrl.replace(/\/api\/?$/, ''), {
       transports: ['websocket'],
-      autoConnect: true,
-      auth: async (cb) => {
+      auth: async (callback) => {
         try {
-          const token = await auth.currentUser?.getIdToken();
-          cb({ token });
-        } catch (err) {
-          cb({ token: null });
+          callback({ token: await auth.currentUser?.getIdToken() });
+        } catch {
+          callback({ token: null });
         }
-      }
+      },
     });
-
-    socketInstance.on('connect', () => {
-      console.log('Socket connected:', socketInstance.id);
-      setConnected(true);
+    socket.on('connect', () => setConnection({ userId, socket, connected: true }));
+    socket.on('disconnect', () => {
+      setConnection((previous) =>
+        previous?.socket === socket ? { ...previous, connected: false } : previous,
+      );
     });
-
-    socketInstance.on('disconnect', () => {
-      console.log('Socket disconnected');
-      setConnected(false);
-    });
-
-    setSocket(socketInstance);
 
     return () => {
-      socketInstance.disconnect();
+      socket.removeAllListeners();
+      socket.disconnect();
     };
-  }, [user]);
+  }, [userId]);
 
-  return (
-    <SocketContext.Provider value={{ socket, connected }}>
-      {children}
-    </SocketContext.Provider>
-  );
+  // A session change immediately hides the previous user's connection.
+  const value =
+    userId && connection?.userId === userId
+      ? { socket: connection.socket, connected: connection.connected }
+      : { socket: null, connected: false };
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 }

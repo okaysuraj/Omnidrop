@@ -1,12 +1,12 @@
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { NextFunction, Request, Response } from 'express';
 import * as admin from 'firebase-admin';
 import { cert, getApps } from 'firebase-admin/app';
 import { AppModule } from './app.module';
+import { getErrorMessage } from './common/errors';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import { RedisIoAdapter } from './websockets/redis-io.adapter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -29,18 +29,15 @@ async function bootstrap() {
       });
     } else if (serviceAccountPath) {
       // Fallback to service account json file path
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const certObj = require(serviceAccountPath);
-      admin.initializeApp({ credential: cert(certObj) });
+      admin.initializeApp({ credential: cert(serviceAccountPath) });
     } else {
       // Use application default credentials or project ID
       admin.initializeApp({
         projectId: projectId || 'omnidrop-dev',
       });
     }
-    logger.log('Firebase Admin SDK initialized');
   } catch (error) {
-    logger.warn(`Firebase Admin SDK init warning: ${error.message}`);
+    logger.warn(`Firebase Admin SDK init warning: ${getErrorMessage(error)}`);
     // Initialize with minimal config for development
     if (!getApps().length) {
       admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'omnidrop-dev' });
@@ -49,23 +46,53 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
+  // Security Headers Middleware
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
+
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Configure Redis for WebSockets
-  const configService = app.get(ConfigService);
-  const redisUrl = configService.get('REDIS_URL', 'redis://localhost:6379');
-  const redisIoAdapter = new RedisIoAdapter(app);
-  await redisIoAdapter.connectToRedis(redisUrl);
-  app.useWebSocketAdapter(redisIoAdapter);
-
   // CORS
+  const configuredOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : [];
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://localhost:8081',
+    'http://localhost:19006',
+  ];
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3000',
-    ],
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      const allowedOrigins = [...defaultOrigins, ...configuredOrigins];
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.netlify.app') ||
+        origin.endsWith('.vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      // In development fallback to allow origin
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      return callback(new Error('Blocked by CORS policy'));
+    },
     credentials: true,
   });
 
@@ -84,8 +111,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
-  logger.log(`🚀 Omnidrop API running on http://localhost:${port}`);
-  logger.log(`📚 API prefix: /api`);
+  logger.log(`Omnidrop API running at http://localhost:${port}/api`);
 }
 
-bootstrap();
+void bootstrap();

@@ -1,9 +1,9 @@
-import { Controller, Post, Get, Patch, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
-import { Public } from '../../common/decorators/public.decorator';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { User } from '../../database/entities';
+import { AuthService } from './auth.service';
+import { LoginDto, RegisterDto, UpdateProfileDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {

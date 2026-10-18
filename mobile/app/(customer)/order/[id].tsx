@@ -1,20 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  BrutalBadge,
+  BrutalButton,
+  BrutalCard,
+  BrutalHeader,
+  BrutalTelemetryStrip,
+} from '@/components/brutal-ui';
+import { BrutalColors, BrutalShadow } from '@/constants/theme';
+import { api } from '@/lib/api';
+import type * as Models from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { api } from '../../src/lib/api';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function OrderConfirmationScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Models.Order | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Animations
-  const [scaleAnim] = useState(new Animated.Value(0));
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(20));
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -28,288 +32,230 @@ export default function OrderConfirmationScreen() {
       }
     };
     if (id) fetchOrder();
-
-    // Checkmark scale animation
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      tension: 50,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
-
-    // Fade and slide for content
-    Animated.stagger(200, [
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      })
-    ]).start();
   }, [id]);
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#00e554" />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: BrutalColors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={BrutalColors.black} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      
-      {/* Background Decorative Element */}
-      <View style={styles.bgGlow} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: BrutalColors.bg }} edges={['top']}>
+      <BrutalTelemetryStrip text="⚡ MISSION INITIALIZED · DISPATCH LOCKED" />
+      <BrutalHeader
+        title="Order Confirmed"
+        subtitle={`#${order?.id?.substring(0, 8).toUpperCase() || 'MANIFEST'}`}
+        showBack={false}
+      />
 
-      <View style={styles.content}>
-        
-        {/* Animated Checkmark */}
-        <Animated.View style={[styles.checkContainer, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={styles.checkCircle}>
-            <MaterialIcons name="check-circle" size={80} color="#007125" />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Main Brutalist Confirmation Card */}
+        <BrutalCard
+          bg={BrutalColors.yellow}
+          style={{ padding: 24, alignItems: 'center', marginBottom: 16 }}
+        >
+          <View
+            style={[
+              {
+                width: 64,
+                height: 64,
+                backgroundColor: BrutalColors.black,
+                borderWidth: 2,
+                borderColor: BrutalColors.black,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 14,
+              },
+              BrutalShadow.sm,
+            ]}
+          >
+            <MaterialIcons name="check" size={40} color={BrutalColors.yellow} />
           </View>
-        </Animated.View>
 
-        {/* Typography */}
-        <Animated.View style={[styles.textSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Text style={styles.title}>Order Confirmed!</Text>
-          <Text style={styles.subtitle}>
-            Order <Text style={styles.orderId}>#{order?.id?.substring(0, 8).toUpperCase()}</Text> is locked in.
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+              textAlign: 'center',
+              letterSpacing: -0.5,
+            }}
+          >
+            Order Dispatched!
           </Text>
-        </Animated.View>
 
-        {/* Info Card */}
-        <Animated.View style={[styles.infoCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconBoxPrimary}>
-              <MaterialIcons name="timer" size={28} color="#006e24" />
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              color: '#333',
+              textAlign: 'center',
+              marginTop: 4,
+            }}
+          >
+            Manifest #{order?.id?.substring(0, 8).toUpperCase()} locked in queue
+          </Text>
+        </BrutalCard>
+
+        {/* Corridor SLA Card */}
+        <BrutalCard style={{ padding: 18, marginBottom: 16 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons
+                name="timer"
+                size={20}
+                color={BrutalColors.black}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '900',
+                  textTransform: 'uppercase',
+                  color: BrutalColors.black,
+                }}
+              >
+                Target Delivery SLA
+              </Text>
             </View>
-            <View style={styles.cardHeaderText}>
-              <Text style={styles.cardLabel}>ESTIMATED DELIVERY</Text>
-              <Text style={styles.cardValue}>12–18 <Text style={styles.cardValueUnit}>mins</Text></Text>
-            </View>
+            <BrutalBadge label="12-18 MINS" variant="green" />
           </View>
-          
-          <View style={styles.divider} />
-          
-          <View style={styles.cardBody}>
-            <View style={styles.iconBoxSecondary}>
-              <MaterialIcons name="storefront" size={20} color="#5b617d" />
-            </View>
-            <View style={styles.cardBodyText}>
-              <Text style={styles.cardBodyTitle}>Preparing at <Text style={styles.boldText}>{order?.store?.name || 'Store'}</Text></Text>
-              <View style={styles.progressBarBg}>
-                <View style={styles.progressBarFill} />
+
+          <Text style={{ fontSize: 26, fontWeight: '900', color: BrutalColors.black }}>
+            12–18 <Text style={{ fontSize: 14, fontWeight: '700' }}>MINUTES</Text>
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: '#666', marginTop: 2 }}>
+            Expedited courier dispatching from {order?.store?.name || 'Local Store Hub'}.
+          </Text>
+
+          <View
+            style={{
+              height: 10,
+              backgroundColor: '#EEEEEE',
+              borderWidth: 1.5,
+              borderColor: BrutalColors.black,
+              marginTop: 14,
+              overflow: 'hidden',
+            }}
+          >
+            <View style={{ width: '45%', height: '100%', backgroundColor: BrutalColors.yellow }} />
+          </View>
+        </BrutalCard>
+
+        {/* Order Items Receipt Manifest */}
+        <BrutalCard style={{ padding: 18, marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              color: BrutalColors.black,
+              marginBottom: 10,
+            }}
+          >
+            Physical Items ({order?.items?.length || 0})
+          </Text>
+
+          <View
+            style={{
+              gap: 8,
+              borderBottomWidth: 1.5,
+              borderBottomColor: BrutalColors.black,
+              paddingBottom: 12,
+            }}
+          >
+            {order?.items?.map((item, idx: number) => (
+              <View
+                key={item.id || idx}
+                style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: BrutalColors.black,
+                    flex: 1,
+                    marginRight: 8,
+                  }}
+                  numberOfLines={1}
+                >
+                  {item.quantity}x {item.name || item.product?.name || 'Item'}
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: BrutalColors.black }}>
+                  ₹{(Number(item.unitPrice || 0) * item.quantity).toFixed(0)}
+                </Text>
               </View>
-            </View>
+            ))}
           </View>
-        </Animated.View>
 
-        {/* Action Buttons */}
-        <Animated.View style={[styles.actionsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={() => router.push('/(customer)/order/track')}>
-            <Text style={styles.primaryBtnText}>Track Order</Text>
-            <MaterialIcons name="arrow-forward" size={24} color="#ffffff" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(customer)/home')}>
-            <Text style={styles.secondaryBtnText}>Back to Home</Text>
-          </TouchableOpacity>
-        </Animated.View>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 10,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '900',
+                textTransform: 'uppercase',
+                color: BrutalColors.black,
+              }}
+            >
+              Gross Total
+            </Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: BrutalColors.black }}>
+              ₹{Number(order?.total || 0).toFixed(0)}
+            </Text>
+          </View>
+        </BrutalCard>
 
-      </View>
+        {/* Actions */}
+        <View style={{ gap: 10 }}>
+          <BrutalButton
+            title="Track Live Radar →"
+            onPress={() =>
+              router.push({ pathname: '/(customer)/order/track', params: { id: order?.id } })
+            }
+            variant="yellow"
+            size="lg"
+            fullWidth
+          />
 
+          <BrutalButton
+            title="Return To Home"
+            onPress={() => router.replace('/(customer)/home')}
+            variant="white"
+            size="md"
+            fullWidth
+          />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  bgGlow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 255, 95, 0.05)',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-  },
-  checkContainer: {
-    marginBottom: 40,
-  },
-  checkCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#00ff5f', // primary-container
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#00ff5f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-  },
-  textSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-    width: '100%',
-  },
-  title: {
-    fontSize: 32,
-    fontFamily: 'Montserrat_800ExtraBold',
-    color: '#006e24',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#3b4b39',
-    textAlign: 'center',
-  },
-  orderId: {
-    fontFamily: 'Montserrat_700Bold',
-    color: '#191c1d',
-    backgroundColor: '#e7e8e9', // surface-container-high
-  },
-  infoCard: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 40,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    borderWidth: 1,
-    borderColor: '#edeeef',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  iconBoxPrimary: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#edeeef',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardHeaderText: {
-    flex: 1,
-  },
-  cardLabel: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#3b4b39',
-    marginBottom: 4,
-    letterSpacing: 1,
-  },
-  cardValue: {
-    fontSize: 24,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#191c1d',
-  },
-  cardValueUnit: {
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#3b4b39',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#edeeef',
-    marginBottom: 20,
-  },
-  cardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconBoxSecondary: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#d8defe',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBodyText: {
-    flex: 1,
-  },
-  cardBodyTitle: {
-    fontSize: 14,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#191c1d',
-    marginBottom: 8,
-  },
-  boldText: {
-    fontFamily: 'Montserrat_700Bold',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#edeeef',
-    borderRadius: 3,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  progressBarFill: {
-    height: '100%',
-    width: '33%',
-    backgroundColor: '#006e24',
-    borderRadius: 3,
-  },
-  actionsSection: {
-    width: '100%',
-    gap: 16,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#006e24',
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 12,
-    elevation: 4,
-    shadowColor: '#006e24',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  primaryBtnText: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#ffffff',
-  },
-  secondaryBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  secondaryBtnText: {
-    fontSize: 20,
-    fontFamily: 'Montserrat_700Bold',
-    color: '#3b4b39',
-  },
-});

@@ -1,53 +1,46 @@
-import { useEffect } from 'react';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { useAuth } from '@/providers/auth-provider';
 import { api } from '@/lib/api';
 import { app } from '@/lib/firebase';
+import { useAuth } from '@/providers/auth-provider';
+import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
+import { useEffect } from 'react';
 
 export function useFCM() {
   const { user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
-    if (!user) return;
+    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    if (!userId || !vapidKey || typeof Notification === 'undefined') return;
 
-    const setupFCM = async () => {
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+
+    async function register() {
       try {
-        const messaging = getMessaging(app);
-        
-        // Request permission
+        if (!(await isSupported()) || disposed) return;
         const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          console.log('Notification permission denied');
-          return;
-        }
+        if (permission !== 'granted' || disposed) return;
 
-        // Get token
-        // In a real app, pass vapidKey from Firebase console Web Push certificates
-        const currentToken = await getToken(messaging, {
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || 'default-vapid-key-needs-replacement',
+        const messaging = getMessaging(app);
+        const token = await getToken(messaging, { vapidKey });
+        if (disposed) return;
+        if (token) await api.auth.updateProfile({ fcmToken: token });
+        if (disposed) return;
+
+        unsubscribe = onMessage(messaging, ({ notification }) => {
+          if (notification)
+            new Notification(notification.title || 'Omnidrop', { body: notification.body });
         });
-
-        if (currentToken) {
-          // Send token to backend profile
-          await api.auth.updateProfile({ fcmToken: currentToken });
-          console.log('FCM Token registered successfully');
-        }
-
-        // Handle foreground messages
-        onMessage(messaging, (payload) => {
-          console.log('Received foreground message ', payload);
-          // E.g., show a toast notification here
-          if (payload.notification) {
-            new Notification(payload.notification.title || 'Omnidrop', {
-              body: payload.notification.body,
-            });
-          }
-        });
-      } catch (err) {
-        console.error('An error occurred while retrieving token. ', err);
+      } catch (error) {
+        console.error('Push notification registration failed:', error);
       }
-    };
+    }
 
-    setupFCM();
-  }, [user]);
+    void register();
+    // Registration can finish after sign-out; avoid keeping its listener alive.
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, [userId]);
 }
