@@ -44,4 +44,4 @@ Format source files from the repository root:
 
     node backend/node_modules/prettier/bin/prettier.cjs --write "backend/src/**/*.{ts,js}" "web/src/**/*.{ts,tsx,css}" "mobile/{app,src}/**/*.{ts,tsx,css}"
 
-Keep package-lock.json files and environment templates. Do not commit secrets, logs, dependencies or generated build output. Netlify deployment settings are in netlify.toml.
+Keep package-lock.json files and environment templates. Do not commit secrets, logs, dependencies or generated build output. Netlify deployment settings are in [web/netlify.toml](web/netlify.toml); set the site's Base directory to `web` in Netlify's build settings.

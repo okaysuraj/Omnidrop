@@ -1,5 +1,5 @@
+# Set the Base directory to "web" in Netlify's build settings to load this file.
 [build]
-  base = "web"
   command = "npm run build"
   publish = ".next"
 

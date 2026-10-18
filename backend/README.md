@@ -23,7 +23,7 @@ Development synchronizes the schema automatically; production disables synchroni
 
 ## Commands
 
-- npm run build: compile to dist; npm start: run the compiled API.
+- npm run build: compile to dist; npm start or npm run start:prod: run the compiled API.
 - npm run lint: check TypeScript source; npm run format: format source.
 - npm run seed: insert sample catalog data into the configured database after registering a user. Review src/database/seed.js before using it.
 - npm run set-role -- user@example.com SHOPKEEPER: change a registered user's role.
@@ -31,3 +31,15 @@ Development synchronizes the schema automatically; production disables synchroni
 - npm run migration:run: apply migrations; npm run migration:revert: revert the last migration.
 
 Stripe handles card payment intents and signed webhooks. RazorpayService is only a UPI development stub. Payment and database failures retain error diagnostics; routine success messages are omitted.
+
+## Render deployment
+
+Configure the web service with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `backend` |
+| Build Command | `npm ci --include=dev && npm run build` |
+| Start Command | `npm run start:prod` |
+
+Set `NODE_ENV=production` and configure the database, Firebase, Stripe and CORS values from `.env.example` in Render's environment settings. The API reads Render's `PORT` environment variable automatically; see [Render's port binding documentation](https://render.com/docs/web-services#port-binding).

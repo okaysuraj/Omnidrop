@@ -21,4 +21,8 @@ Open http://localhost:3000. The backend must be running for catalog, profile, ca
 
 Use the existing hard borders, offset shadows and shared UI components when changing screens. Add API methods to the client instead of calling fetch from pages.
 
-Run npm run build before committing. npm start serves the production build; npm run lint checks source. The root netlify.toml configures hosting.
+Run npm run build before committing. npm start serves the production build; npm run lint checks source.
+
+## Netlify deployment
+
+Hosting settings live in [netlify.toml](netlify.toml). In Netlify's build settings, set the site's Base directory to `web` so Netlify finds `web/netlify.toml`, installs dependencies and runs `npm run build` inside `web/`. The publish directory `.next` is relative to that base directory. See [Netlify's configuration file discovery rules](https://docs.netlify.com/build/configure-builds/monorepos/#how-netlify-finds-your-configuration-files).
