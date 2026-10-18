@@ -29,8 +29,8 @@ Omnidrop is a multi-role hyperlocal quick-commerce platform consisting of three 
 
 ### Web Frontend (`web/`)
 - **Framework**: Next.js 15+ with React 19 and App Router (`src/app/`).
-- **Styling**: Neo-Brutalist design language with hard borders (`border-2 border-black`), sharp offset shadows (`shadow-[4px_4px_0px_0px_#000]`), bold typography, and dynamic accent colors.
-- **Design Tokens**: Standardized components live in `src/components/shared/` (`BrutalNav`, `BrutalFooter`, `LiveMap`, etc.).
+- **Styling**: A spacious neighborhood marketplace with Manrope typography, a restrained green accent, rounded surfaces, subtle borders, and light/dark themes. Use the semantic tokens and layered components in `src/app/globals.css`; see `web/DESIGN.md`.
+- **Design Tokens**: Standardized components live in `src/components/shared/` (`SiteNav`, `ProductCard`, `StoreCard`, `AuthShell`, etc.). The existing `BrutalNav` and `BrutalFooter` exports use the current visual system for compatibility.
 - **State & Auth**: `AuthProvider` listens to Firebase Auth state and attaches authorization tokens to API requests.
 - **Maps**: Leaflet with dynamic client-side loading (`LiveMap`).
 
