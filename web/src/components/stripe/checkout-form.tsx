@@ -50,12 +50,12 @@ export function CheckoutForm({ onSuccess, orderId }: CheckoutFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 font-sans">
-      <div className="p-3 bg-white border-2 border-black">
+      <div className="p-3 bg-surface border rounded-xl border-line">
         <PaymentElement />
       </div>
 
       {error && (
-        <div className="text-red-700 text-xs font-tech font-bold p-3 bg-red-100 border-2 border-red-500 flex items-center gap-2">
+        <div className="text-danger text-xs font-sans font-bold p-3 bg-danger-soft border rounded-xl border-danger flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -64,10 +64,10 @@ export function CheckoutForm({ onSuccess, orderId }: CheckoutFormProps) {
       <button
         type="submit"
         disabled={!stripe || loading}
-        className="btn-brutal-yellow !h-12 !w-full font-display font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+        className="button-primary !h-12 !w-full font-display font-bold text-xs  tracking-normal flex items-center justify-center gap-2"
       >
         <Lock className="w-4 h-4" />
-        <span>{loading ? 'AUTHORIZING SETTLEMENT...' : 'AUTHORIZE & CONFIRM DISPATCH'}</span>
+        <span>{loading ? 'Confirming your payment...' : 'Pay securely'}</span>
       </button>
     </form>
   );

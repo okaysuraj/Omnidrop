@@ -95,7 +95,7 @@ export default function SavedAddressesPage() {
   };
 
   const handleDeleteAddress = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this delivery waypoint?')) return;
+    if (!confirm('Remove this saved address?')) return;
     setDeletingId(id);
     try {
       await api.users.deleteAddress(id);
@@ -116,20 +116,24 @@ export default function SavedAddressesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// GEO-RADAR WAYPOINTS'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   mb-2">
+              {'Geo-radar waypoints'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
               Saved Delivery Addresses
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
               Pre-authorized doorstep drop coordinates for rapid 15-minute dispatch.
             </p>
           </div>
@@ -140,7 +144,7 @@ export default function SavedAddressesPage() {
               setFeedback(null);
               setModalOpen(true);
             }}
-            className="btn-brutal-yellow !h-10 !px-4 text-xs font-bold uppercase flex items-center gap-2"
+            className="button-primary !h-10 !px-4 text-xs font-bold  flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Waypoint</span>
@@ -150,8 +154,8 @@ export default function SavedAddressesPage() {
         {/* Global Feedback Banner */}
         {feedback && (
           <div
-            className={`p-4 border-2 border-black shadow-[4px_4px_0px_#000] font-tech text-xs font-bold flex items-center gap-3 ${
-              feedback.type === 'success' ? 'bg-[#00E599] text-black' : 'bg-[#FF4800] text-white'
+            className={`p-4 border rounded-xl border-line  font-sans text-xs font-bold flex items-center gap-3 ${
+              feedback.type === 'success' ? 'bg-brand-soft text-ink' : 'bg-danger-soft text-ink'
             }`}
           >
             {feedback.type === 'success' ? (
@@ -164,17 +168,17 @@ export default function SavedAddressesPage() {
         )}
 
         {loading ? (
-          <div className="py-24 text-center font-tech text-xs font-bold flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-black" />
-            <span className="uppercase tracking-wider">RETRIEVING REGISTERED WAYPOINTS...</span>
+          <div className="py-24 text-center font-sans text-xs font-bold flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-ink" />
+            <span className=" tracking-normal">Retrieving registered waypoints...</span>
           </div>
         ) : addresses.length === 0 ? (
-          <div className="card-brutal p-12 text-center bg-white border-2 border-black max-w-lg mx-auto space-y-4">
-            <MapPin className="w-12 h-12 text-neutral-400 mx-auto" />
-            <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+          <div className="surface-card p-12 text-center bg-surface border rounded-xl border-line max-w-lg mx-auto space-y-4">
+            <MapPin className="w-12 h-12 text-secondary mx-auto" />
+            <h3 className="font-display font-bold text-xl  tracking-tight text-ink">
               No Delivery Waypoints Configured
             </h3>
-            <p className="font-sans text-xs text-neutral-600">
+            <p className="font-sans text-xs text-secondary">
               Add your home, office, or apartment coordinates to enable zero-prompt checkout
               dispatches.
             </p>
@@ -184,7 +188,7 @@ export default function SavedAddressesPage() {
                 setFeedback(null);
                 setModalOpen(true);
               }}
-              className="btn-brutal-yellow inline-flex !h-10 !px-5 text-xs font-bold uppercase items-center gap-2"
+              className="button-primary inline-flex !h-10 !px-5 text-xs font-bold  items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               <span>Configure First Waypoint</span>
@@ -197,40 +201,38 @@ export default function SavedAddressesPage() {
               return (
                 <div
                   key={addr.id}
-                  className="card-brutal bg-white p-5 border-2 border-black shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-4"
+                  className="surface-card bg-surface p-5 border rounded-xl border-line  flex flex-col space-y-4"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b-2 border-black pb-2.5">
-                      <div className="flex items-center gap-2 font-tech font-bold text-xs uppercase text-neutral-900">
+                    <div className="flex items-center justify-between border-b border-line pb-2.5">
+                      <div className="flex items-center gap-2 font-sans font-bold text-xs  text-ink">
                         {getLabelIcon(addr.label || 'Home')}
                         <span>{addr.label || 'Waypoint'}</span>
                       </div>
                       {addr.isDefault && (
-                        <span className="badge-brutal-yellow text-[9px] font-black uppercase">
-                          DEFAULT DROP
-                        </span>
+                        <span className="badge-accent text-xs font-bold ">Default drop</span>
                       )}
                     </div>
 
                     <div>
-                      <div className="font-display font-black text-base uppercase text-neutral-900 leading-snug">
+                      <div className="font-display font-bold text-base  text-ink leading-snug">
                         {addr.addressLine1}
                       </div>
-                      <div className="font-sans text-xs text-neutral-600 mt-1 font-medium">
+                      <div className="font-sans text-xs text-secondary mt-1 font-medium">
                         {addr.city}, {addr.state} - {addr.pincode}
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t-2 border-black flex items-center justify-between">
-                    <span className="font-tech text-[10px] text-neutral-500 font-bold uppercase">
-                      GEO-TAGGED PROTOCOL
+                  <div className="pt-3 border-t border-line flex items-center justify-between">
+                    <span className="font-sans text-xs text-secondary font-bold ">
+                      Geo-tagged protocol
                     </span>
                     <button
                       type="button"
                       onClick={() => handleDeleteAddress(addr.id)}
                       disabled={isDeleting}
-                      className="p-1.5 hover:bg-[#FF4800] hover:text-white border-2 border-black transition-colors"
+                      className="p-1.5 hover:bg-danger-soft hover:text-ink border rounded-xl border-line transition-colors"
                       title="Delete Waypoint"
                     >
                       {isDeleting ? (
@@ -249,21 +251,21 @@ export default function SavedAddressesPage() {
 
       {/* Add Address Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="card-brutal bg-white w-full max-w-lg p-6 border-2 border-black shadow-[8px_8px_0px_#000] space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-black pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-muted p-4 backdrop-blur-xs">
+          <div className="surface-card bg-surface w-full max-w-lg p-6 border rounded-xl border-line  space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <span className="font-tech text-[10px] uppercase font-bold text-neutral-500">
-                  COURIER VECTOR REGISTRATION
+                <span className="font-sans text-xs  font-bold text-secondary">
+                  Courier vector registration
                 </span>
-                <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+                <h3 className="font-display font-bold text-xl  tracking-tight text-ink">
                   Register New Waypoint
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 border-2 border-black flex items-center justify-center hover:bg-[#FF4800] hover:text-white transition-colors"
+                className="w-8 h-8 border rounded-xl border-line flex items-center justify-center hover:bg-danger-soft hover:text-ink transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -272,7 +274,7 @@ export default function SavedAddressesPage() {
             <form onSubmit={handleCreateAddress} className="space-y-4">
               {/* Label Selector */}
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                <label className="block font-sans text-xs  font-bold text-ink mb-1.5">
                   Location Type Label
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -281,10 +283,10 @@ export default function SavedAddressesPage() {
                       key={l}
                       type="button"
                       onClick={() => setLabel(l)}
-                      className={`py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+                      className={`py-2 border rounded-xl border-line font-sans text-xs  font-bold transition-all ${
                         label === l
-                          ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000]'
-                          : 'bg-[#FAFAF8] text-neutral-700 hover:bg-neutral-200'
+                          ? 'bg-brand-soft text-ink '
+                          : 'bg-canvas text-secondary hover:bg-muted'
                       }`}
                     >
                       {l}
@@ -295,64 +297,80 @@ export default function SavedAddressesPage() {
 
               {/* Street Address */}
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                <label
+                  htmlFor="field-addresses-page-1"
+                  className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                >
                   Street Address & Flat / Tower
                 </label>
                 <input
+                  id="field-addresses-page-1"
                   type="text"
                   required
                   placeholder="e.g. Flat 402, Lotus Towers, 12th Main Road"
                   value={streetAddress}
                   onChange={(e) => setStreetAddress(e.target.value)}
-                  className="input-brutal text-xs"
+                  className="field-input text-xs"
                 />
               </div>
 
               {/* City & State */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                  <label
+                    htmlFor="field-addresses-page-2"
+                    className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                  >
                     City / Quadrant
                   </label>
                   <input
+                    id="field-addresses-page-2"
                     type="text"
                     required
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="input-brutal text-xs"
+                    className="field-input text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                  <label
+                    htmlFor="field-addresses-page-3"
+                    className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                  >
                     State
                   </label>
                   <input
+                    id="field-addresses-page-3"
                     type="text"
                     required
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="input-brutal text-xs"
+                    className="field-input text-xs"
                   />
                 </div>
               </div>
 
               {/* Pincode */}
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                <label
+                  htmlFor="field-addresses-page-4"
+                  className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                >
                   Postal Pincode
                 </label>
                 <input
+                  id="field-addresses-page-4"
                   type="text"
                   required
                   placeholder="560038"
                   value={pincode}
                   onChange={(e) => setPincode(e.target.value)}
-                  className="input-brutal text-xs font-tech font-bold"
+                  className="field-input text-xs font-sans font-bold"
                 />
               </div>
 
-              <div className="p-3 bg-[#FAFAF8] border-2 border-black font-tech text-[11px] text-neutral-600 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#059669] flex-shrink-0" />
+              <div className="p-3 bg-canvas border rounded-xl border-line font-sans text-xs text-secondary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-brand flex-shrink-0" />
                 <span>Geocoded into the dispatch satellite radar for immediate routing.</span>
               </div>
 
@@ -360,22 +378,22 @@ export default function SavedAddressesPage() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="w-1/2 btn-brutal-white !h-11 font-tech text-xs uppercase font-bold"
+                  className="w-1/2 button-secondary !h-11 font-sans text-xs  font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-1/2 btn-brutal-yellow !h-11 font-tech text-xs uppercase font-bold flex items-center justify-center gap-2"
+                  className="w-1/2 button-primary !h-11 font-sans text-xs  font-bold flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>SAVING...</span>
+                      <span>Saving...</span>
                     </>
                   ) : (
-                    <span>CONFIRM WAYPOINT</span>
+                    <span>Confirm waypoint</span>
                   )}
                 </button>
               </div>

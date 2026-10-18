@@ -19,7 +19,7 @@ Open http://localhost:3000. The backend must be running for catalog, profile, ca
 - src/lib/api.ts: authorization, response unwrapping and endpoint methods.
 - src/types: domain models, API inputs and event payloads.
 
-Use the existing hard borders, offset shadows and shared UI components when changing screens. Add API methods to the client instead of calling fetch from pages.
+Use the semantic color tokens, layered CSS components and shared UI components described in [DESIGN.md](DESIGN.md) when changing screens. Add API methods to the client instead of calling fetch from pages.
 
 Run npm run build before committing. npm start serves the production build; npm run lint checks source.
 

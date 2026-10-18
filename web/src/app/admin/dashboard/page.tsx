@@ -1,5 +1,13 @@
 'use client';
 
+import {
+  ChartNoAxesCombined as UiChartNoAxesCombined,
+  MapPin as UiMapPin,
+  Package as UiPackage,
+  Store as UiStore,
+  Users as UiUsers,
+} from 'lucide-react';
+
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
 import { api } from '@/lib/api';
@@ -106,96 +114,110 @@ export default function AdminDashboard() {
       (s.address || '').toLowerCase().includes(searchFilter.toLowerCase()),
   );
 
-  const totalGMV = dashboardStats?.revenue || orderStats?.revenue || 42800;
+  const totalGMV = dashboardStats?.revenue ?? orderStats?.revenue ?? 0;
   const platformRevenue = Math.round(Number(totalGMV) * 0.06);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Terminal Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// ROOT CONTROL · OPS MISSION RADAR'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   mb-2">
+              {'Root control · ops mission radar'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Platform Governance Console
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
+              Marketplace overview
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Admin operator: <strong className="text-black">{user?.email}</strong> · Network
-              Status: Operational
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
+              Admin operator: <strong className="text-ink">{user?.email}</strong> · Network Status:
+              Operational
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={loadData}
-              className="btn-brutal-white !h-10 !py-0 !px-4 text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5"
+              className="button-secondary !h-10 !py-0 !px-4 text-xs font-sans font-bold  tracking-normal flex items-center gap-1.5"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh Telemetry</span>
             </button>
-            <span className="font-tech text-xs bg-[#FF4800] text-white font-bold uppercase px-3 py-2 border-2 border-black shadow-[2px_2px_0px_#000]">
-              ADMIN CLEARANCE
+            <span className="font-sans text-xs bg-danger-soft text-ink font-bold  px-3 py-2 border rounded-xl border-line ">
+              Admin clearance
             </span>
           </div>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex flex-wrap gap-2 font-tech text-xs uppercase font-bold">
+        <div className="flex flex-wrap gap-2 font-sans text-xs  font-bold">
           <button
             onClick={() => {
               setActiveTab('overview');
               setSearchFilter('');
             }}
-            className={`px-4 py-2 border-2 border-black transition-all ${
+            className={`px-4 py-2 border rounded-xl border-line transition-all ${
               activeTab === 'overview'
-                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                : 'bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]'
+                ? 'bg-brand-soft text-ink '
+                : 'bg-surface hover:bg-muted text-ink '
             }`}
           >
-            📊 Network Overview
+            <UiChartNoAxesCombined
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            Overview
           </button>
           <button
             onClick={() => {
               setActiveTab('users');
               setSearchFilter('');
             }}
-            className={`px-4 py-2 border-2 border-black transition-all ${
+            className={`px-4 py-2 border rounded-xl border-line transition-all ${
               activeTab === 'users'
-                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                : 'bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]'
+                ? 'bg-brand-soft text-ink '
+                : 'bg-surface hover:bg-muted text-ink '
             }`}
           >
-            👥 User Registry ({users.length})
+            <UiUsers className="inline-block size-4 align-text-bottom mr-1.5" aria-hidden="true" />{' '}
+            Customers & partners ({users.length})
           </button>
           <button
             onClick={() => {
               setActiveTab('stores');
               setSearchFilter('');
             }}
-            className={`px-4 py-2 border-2 border-black transition-all ${
+            className={`px-4 py-2 border rounded-xl border-line transition-all ${
               activeTab === 'stores'
-                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                : 'bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]'
+                ? 'bg-brand-soft text-ink '
+                : 'bg-surface hover:bg-muted text-ink '
             }`}
           >
-            🏪 Store Verification ({stores.length})
+            <UiStore className="inline-block size-4 align-text-bottom mr-1.5" aria-hidden="true" />{' '}
+            Store verification ({stores.length})
           </button>
           <button
             onClick={() => {
               setActiveTab('orders');
               setSearchFilter('');
             }}
-            className={`px-4 py-2 border-2 border-black transition-all ${
+            className={`px-4 py-2 border rounded-xl border-line transition-all ${
               activeTab === 'orders'
-                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                : 'bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]'
+                ? 'bg-brand-soft text-ink '
+                : 'bg-surface hover:bg-muted text-ink '
             }`}
           >
-            📦 Master Orders ({orders.length})
+            <UiPackage
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            All orders ({orders.length})
           </button>
         </div>
 
@@ -204,127 +226,105 @@ export default function AdminDashboard() {
           <div className="space-y-8">
             {/* Top Revenue & Volume Matrix */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="card-brutal p-4 bg-[#FFE600]/25 border-black">
-                <p className="font-tech text-xs text-neutral-800 uppercase font-bold flex items-center justify-between">
+              <div className="surface-card p-4 bg-brand-soft border-line">
+                <p className="font-sans text-xs text-ink  font-bold flex items-center justify-between">
                   <span>Gross GMV Volume</span>
-                  <TrendingUp className="w-3.5 h-3.5 text-black" />
+                  <TrendingUp className="w-3.5 h-3.5 text-ink" />
                 </p>
-                <p className="font-display font-black text-3xl text-neutral-900 mt-1">
-                  ₹{totalGMV}
-                </p>
-                <span className="text-[10px] font-tech text-neutral-700">
-                  Platform merchandise value
-                </span>
+                <p className="font-display font-bold text-3xl text-ink mt-1">₹{totalGMV}</p>
+                <span className="text-xs font-sans text-secondary">Platform merchandise value</span>
               </div>
 
-              <div className="card-brutal p-4 bg-[#00E599]/20 border-black">
-                <p className="font-tech text-xs text-emerald-900 uppercase font-bold flex items-center justify-between">
+              <div className="surface-card p-4 bg-brand-soft border-line">
+                <p className="font-sans text-xs text-brand  font-bold flex items-center justify-between">
                   <span>Omnidrop Take-Rate (6%)</span>
-                  <DollarSign className="w-3.5 h-3.5 text-black" />
+                  <DollarSign className="w-3.5 h-3.5 text-ink" />
                 </p>
-                <p className="font-display font-black text-3xl text-neutral-900 mt-1">
-                  ₹{platformRevenue}
-                </p>
-                <span className="text-[10px] font-tech text-emerald-800 font-bold">
-                  Net platform revenue
-                </span>
+                <p className="font-display font-bold text-3xl text-ink mt-1">₹{platformRevenue}</p>
+                <span className="text-xs font-sans text-brand font-bold">Net platform revenue</span>
               </div>
 
-              <div className="card-brutal p-4">
-                <p className="font-tech text-xs text-neutral-500 uppercase font-bold flex items-center justify-between">
+              <div className="surface-card p-4">
+                <p className="font-sans text-xs text-secondary  font-bold flex items-center justify-between">
                   <span>Total Users</span>
-                  <Users className="w-3.5 h-3.5 text-neutral-500" />
+                  <Users className="w-3.5 h-3.5 text-secondary" />
                 </p>
-                <p className="font-display font-black text-3xl text-neutral-900 mt-1">
+                <p className="font-display font-bold text-3xl text-ink mt-1">
                   {dashboardStats?.users?.totalActive || userStats?.total || users.length}
                 </p>
-                <span className="text-[10px] font-tech text-neutral-500">
-                  Across all 3 stakeholders
-                </span>
+                <span className="text-xs font-sans text-secondary">Across all 3 stakeholders</span>
               </div>
 
-              <div className="card-brutal p-4">
-                <p className="font-tech text-xs text-neutral-500 uppercase font-bold flex items-center justify-between">
+              <div className="surface-card p-4">
+                <p className="font-sans text-xs text-secondary  font-bold flex items-center justify-between">
                   <span>Total Orders</span>
-                  <Package className="w-3.5 h-3.5 text-neutral-500" />
+                  <Package className="w-3.5 h-3.5 text-secondary" />
                 </p>
-                <p className="font-display font-black text-3xl text-neutral-900 mt-1">
+                <p className="font-display font-bold text-3xl text-ink mt-1">
                   {dashboardStats?.orders?.total || orderStats?.total || orders.length}
                 </p>
-                <span className="text-[10px] font-tech text-neutral-500">
-                  All-time transactions
-                </span>
+                <span className="text-xs font-sans text-secondary">All-time transactions</span>
               </div>
             </div>
 
             {/* Stakeholder Breakdown & Health */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="card-brutal p-6 bg-white space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b-2 border-black">
-                  <h3 className="font-display font-black text-lg uppercase text-neutral-900">
-                    Stakeholder Radar
-                  </h3>
-                  <Users className="w-5 h-5 text-black" />
+              <div className="surface-card p-6 bg-surface space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-line">
+                  <h3 className="font-display font-bold text-lg  text-ink">Stakeholder Radar</h3>
+                  <Users className="w-5 h-5 text-ink" />
                 </div>
-                <div className="space-y-3 font-tech text-xs">
-                  <div className="flex justify-between p-2.5 bg-neutral-50 border border-black">
-                    <span className="text-neutral-600 uppercase font-bold">Customers:</span>
-                    <strong className="text-black text-sm">
+                <div className="space-y-3 font-sans text-xs">
+                  <div className="flex justify-between p-2.5 bg-muted border border-line">
+                    <span className="text-secondary  font-bold">Customers:</span>
+                    <strong className="text-ink text-sm">
                       {dashboardStats?.users?.customers || userStats?.customers || 0}
                     </strong>
                   </div>
-                  <div className="flex justify-between p-2.5 bg-neutral-50 border border-black">
-                    <span className="text-neutral-600 uppercase font-bold">
-                      Merchants / Stores:
-                    </span>
-                    <strong className="text-black text-sm">{stores.length}</strong>
+                  <div className="flex justify-between p-2.5 bg-muted border border-line">
+                    <span className="text-secondary  font-bold">Merchants / Stores:</span>
+                    <strong className="text-ink text-sm">{stores.length}</strong>
                   </div>
-                  <div className="flex justify-between p-2.5 bg-neutral-50 border border-black">
-                    <span className="text-neutral-600 uppercase font-bold">Active Couriers:</span>
-                    <strong className="text-black text-sm">
+                  <div className="flex justify-between p-2.5 bg-muted border border-line">
+                    <span className="text-secondary  font-bold">Active Couriers:</span>
+                    <strong className="text-ink text-sm">
                       {dashboardStats?.users?.riders || userStats?.riders || 0}
                     </strong>
                   </div>
                 </div>
               </div>
 
-              <div className="card-brutal p-6 bg-white space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b-2 border-black">
-                  <h3 className="font-display font-black text-lg uppercase text-neutral-900">
+              <div className="surface-card p-6 bg-surface space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-line">
+                  <h3 className="font-display font-bold text-lg  text-ink">
                     Order Pipeline Health
                   </h3>
-                  <Activity className="w-5 h-5 text-black" />
+                  <Activity className="w-5 h-5 text-ink" />
                 </div>
-                <div className="space-y-3 font-tech text-xs">
-                  <div className="flex justify-between p-2.5 bg-[#FF4800]/10 border border-black">
-                    <span className="text-[#FF4800] uppercase font-bold">Pending / In-Prep:</span>
-                    <strong className="text-neutral-900 text-sm">{orderStats?.pending || 0}</strong>
+                <div className="space-y-3 font-sans text-xs">
+                  <div className="flex justify-between p-2.5 bg-danger-soft border border-line">
+                    <span className="text-danger  font-bold">Pending / In-Prep:</span>
+                    <strong className="text-ink text-sm">{orderStats?.pending || 0}</strong>
                   </div>
-                  <div className="flex justify-between p-2.5 bg-[#FFE600]/20 border border-black">
-                    <span className="text-neutral-800 uppercase font-bold">In-Transit / Air:</span>
-                    <strong className="text-neutral-900 text-sm">
-                      {orderStats?.inTransit || 0}
-                    </strong>
+                  <div className="flex justify-between p-2.5 bg-brand-soft border border-line">
+                    <span className="text-ink  font-bold">In-Transit / Air:</span>
+                    <strong className="text-ink text-sm">{orderStats?.inTransit || 0}</strong>
                   </div>
-                  <div className="flex justify-between p-2.5 bg-[#00E599]/20 border border-black">
-                    <span className="text-emerald-900 uppercase font-bold">
-                      Delivered (SLA &lt;15m):
-                    </span>
-                    <strong className="text-neutral-900 text-sm">
+                  <div className="flex justify-between p-2.5 bg-brand-soft border border-line">
+                    <span className="text-brand  font-bold">Delivered (SLA &lt;15m):</span>
+                    <strong className="text-ink text-sm">
                       {orderStats?.delivered || orders.length}
                     </strong>
                   </div>
                 </div>
               </div>
 
-              <div className="card-brutal p-6 bg-white space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b-2 border-black">
-                  <h3 className="font-display font-black text-lg uppercase text-neutral-900">
-                    System Parameters
-                  </h3>
-                  <ShieldAlert className="w-5 h-5 text-black" />
+              <div className="surface-card p-6 bg-surface space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-line">
+                  <h3 className="font-display font-bold text-lg  text-ink">System Parameters</h3>
+                  <ShieldAlert className="w-5 h-5 text-ink" />
                 </div>
-                <div className="space-y-2 font-tech text-xs text-neutral-700">
+                <div className="space-y-2 font-sans text-xs text-secondary">
                   <p>
                     Database: <strong>Neon Serverless Cloud (Synced)</strong>
                   </p>
@@ -337,8 +337,8 @@ export default function AdminDashboard() {
                   <p>
                     Courier Payout: <strong>100% Delivery Fee + Tips</strong>
                   </p>
-                  <div className="p-2 bg-[#00E599] text-black font-bold uppercase text-center border border-black mt-3">
-                    ALL MICROSERVICES ONLINE
+                  <div className="p-2 bg-brand-soft text-ink font-bold  text-center border border-line mt-3">
+                    All microservices online
                   </div>
                 </div>
               </div>
@@ -346,13 +346,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 2: User Registry */}
+        {/* Tab 2: Customers & partners */}
         {activeTab === 'users' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="font-tech text-xs font-bold uppercase text-neutral-700 tracking-wider">
-                {'// SYSTEM STAKEHOLDERS REGISTRY ('}
-                {users.length} NODES)
+              <h2 className="font-sans text-xs font-bold  text-secondary tracking-normal">
+                {'System stakeholders registry ('}
+                {users.length} Nodes)
               </h2>
               <div className="relative max-w-xs w-full">
                 <input
@@ -360,16 +360,16 @@ export default function AdminDashboard() {
                   placeholder="Filter users..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="input-brutal !h-9 text-xs pl-8"
+                  className="field-input !h-9 text-xs pl-8"
                 />
-                <Search className="w-4 h-4 text-neutral-500 absolute left-2.5 top-2.5" />
+                <Search className="w-4 h-4 text-secondary absolute left-2.5 top-2.5" />
               </div>
             </div>
 
-            <div className="border-2 border-black overflow-x-auto shadow-[4px_4px_0px_#000] bg-white">
-              <table className="w-full text-left font-tech text-xs border-collapse">
+            <div className="border rounded-xl border-line overflow-x-auto  bg-surface">
+              <table className="w-full text-left font-sans text-xs border-collapse">
                 <thead>
-                  <tr className="bg-black text-white border-b-2 border-black uppercase text-[11px]">
+                  <tr className="bg-muted text-ink border-b border-line  text-xs">
                     <th className="p-3">User Entity</th>
                     <th className="p-3">Email Address</th>
                     <th className="p-3">Assigned Role</th>
@@ -377,26 +377,26 @@ export default function AdminDashboard() {
                     <th className="p-3 text-right">Governance Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-black">
+                <tbody className="divide-y divide-line">
                   {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={u.id} className="hover:bg-muted transition-colors">
                       <td className="p-3 font-bold font-sans flex items-center gap-2.5">
-                        <span className="w-7 h-7 bg-neutral-200 border border-black font-tech text-xs font-black flex items-center justify-center">
+                        <span className="w-7 h-7 bg-muted border border-line font-sans text-xs font-bold flex items-center justify-center">
                           {u.fullName?.[0]?.toUpperCase() || 'U'}
                         </span>
                         <span>{u.fullName || 'Anonymous Node'}</span>
                       </td>
-                      <td className="p-3 text-neutral-600">{u.email}</td>
+                      <td className="p-3 text-secondary">{u.email}</td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-0.5 font-bold uppercase border border-black text-[10px] ${
+                          className={`px-2 py-0.5 font-bold  border border-line text-xs ${
                             u.role === 'ADMIN'
-                              ? 'bg-[#FF4800] text-white'
+                              ? 'bg-danger-soft text-ink'
                               : u.role === 'SHOPKEEPER'
-                                ? 'bg-[#FFE600] text-black'
+                                ? 'bg-brand-soft text-ink'
                                 : u.role === 'DELIVERY_PARTNER'
-                                  ? 'bg-[#00E599] text-black'
-                                  : 'bg-neutral-100 text-neutral-800'
+                                  ? 'bg-brand-soft text-ink'
+                                  : 'bg-muted text-ink'
                           }`}
                         >
                           {u.role}
@@ -404,10 +404,10 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-0.5 font-bold uppercase text-[10px] ${
+                          className={`px-2 py-0.5 font-bold  text-xs ${
                             u.isActive
-                              ? 'text-emerald-700 bg-emerald-50 border border-emerald-400'
-                              : 'text-red-700 bg-red-50 border border-red-400'
+                              ? 'text-brand bg-brand-soft border border-brand'
+                              : 'text-danger bg-danger-soft border border-danger'
                           }`}
                         >
                           {u.isActive ? 'Active' : 'Suspended'}
@@ -417,10 +417,10 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => handleToggleUser(u.id)}
                           disabled={actionLoadingId === u.id || u.role === 'ADMIN'}
-                          className={`px-3 py-1 font-tech text-xs font-bold uppercase border border-black transition-all ${
+                          className={`px-3 py-1 font-sans text-xs font-bold  border border-line transition-all ${
                             u.isActive
-                              ? 'bg-neutral-100 hover:bg-neutral-200 text-red-600'
-                              : 'bg-[#00E599] hover:opacity-90 text-black'
+                              ? 'bg-muted hover:bg-muted text-danger'
+                              : 'bg-brand-soft hover:opacity-90 text-ink'
                           } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           {actionLoadingId === u.id
@@ -438,13 +438,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tab 3: Store Verification Queue */}
+        {/* Tab 3: Store verification Queue */}
         {activeTab === 'stores' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="font-tech text-xs font-bold uppercase text-neutral-700 tracking-wider">
-                {'// MICRO-HUB STORE APPROVAL PIPELINE ('}
-                {stores.length} STORES REGISTERED)
+              <h2 className="font-sans text-xs font-bold  text-secondary tracking-normal">
+                {'Micro-hub store approval pipeline ('}
+                {stores.length} Stores registered)
               </h2>
               <div className="relative max-w-xs w-full">
                 <input
@@ -452,9 +452,9 @@ export default function AdminDashboard() {
                   placeholder="Filter stores..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="input-brutal !h-9 text-xs pl-8"
+                  className="field-input !h-9 text-xs pl-8"
                 />
-                <Search className="w-4 h-4 text-neutral-500 absolute left-2.5 top-2.5" />
+                <Search className="w-4 h-4 text-secondary absolute left-2.5 top-2.5" />
               </div>
             </div>
 
@@ -462,33 +462,37 @@ export default function AdminDashboard() {
               {filteredStores.map((s) => (
                 <div
                   key={s.id}
-                  className="card-brutal p-5 bg-white border-2 border-black space-y-4 shadow-[4px_4px_0px_#000]"
+                  className="surface-card p-5 bg-surface border rounded-xl border-line space-y-4 "
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-sans font-black text-lg text-neutral-900 leading-tight">
+                      <h3 className="font-sans font-bold text-lg text-ink leading-tight">
                         {s.name}
                       </h3>
-                      <p className="font-tech text-xs text-neutral-500 mt-0.5">
+                      <p className="font-sans text-xs text-secondary mt-0.5">
                         Hub ID: #{s.id.slice(0, 8).toUpperCase()} · Radius: {s.radiusKm || 5.0} km
                       </p>
                     </div>
 
                     <span
-                      className={`px-2 py-0.5 font-tech text-[10px] font-bold uppercase border border-black shrink-0 ${
-                        s.isVerified ? 'bg-[#00E599] text-black' : 'bg-[#FFE600] text-black'
+                      className={`px-2 py-0.5 font-sans text-xs font-bold  border border-line shrink-0 ${
+                        s.isVerified ? 'bg-brand-soft text-ink' : 'bg-brand-soft text-ink'
                       }`}
                     >
                       {s.isVerified ? 'VERIFIED' : 'PENDING APPROVAL'}
                     </span>
                   </div>
 
-                  <p className="font-sans text-xs text-neutral-700 bg-neutral-50 p-2.5 border border-black">
-                    📍 {s.address || 'Address pending physical verification'}
+                  <p className="font-sans text-xs text-secondary bg-muted p-2.5 border border-line">
+                    <UiMapPin
+                      className="inline-block size-4 align-text-bottom mr-1.5"
+                      aria-hidden="true"
+                    />{' '}
+                    {s.address || 'Address pending physical verification'}
                   </p>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-neutral-200">
-                    <span className="font-tech text-xs text-neutral-500">
+                  <div className="flex items-center justify-between pt-2 border-t border-line">
+                    <span className="font-sans text-xs text-secondary">
                       Bank IFSC: {s.bankIfsc || 'Pending'}
                     </span>
 
@@ -496,7 +500,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleVerifyStore(s.id)}
                         disabled={actionLoadingId === s.id}
-                        className="btn-brutal-yellow !h-8 !px-3 font-tech text-xs font-bold uppercase flex items-center gap-1.5"
+                        className="button-primary !h-8 !px-3 font-sans text-xs font-bold  flex items-center gap-1.5"
                       >
                         <BadgeCheck className="w-4 h-4" />
                         <span>
@@ -504,7 +508,7 @@ export default function AdminDashboard() {
                         </span>
                       </button>
                     ) : (
-                      <span className="font-tech text-xs text-emerald-700 font-bold flex items-center gap-1">
+                      <span className="font-sans text-xs text-brand font-bold flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Certified Merchant
                       </span>
                     )}
@@ -518,15 +522,15 @@ export default function AdminDashboard() {
         {/* Tab 4: Master Order Feed */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
-            <h2 className="font-tech text-xs font-bold uppercase text-neutral-700 tracking-wider">
-              {'// RECENT NETWORK ORDERS ('}
-              {orders.length} ITEMS STREAMED)
+            <h2 className="font-sans text-xs font-bold  text-secondary tracking-normal">
+              {'Recent network orders ('}
+              {orders.length} Items streamed)
             </h2>
 
-            <div className="border-2 border-black overflow-x-auto shadow-[4px_4px_0px_#000] bg-white">
-              <table className="w-full text-left font-tech text-xs border-collapse">
+            <div className="border rounded-xl border-line overflow-x-auto  bg-surface">
+              <table className="w-full text-left font-sans text-xs border-collapse">
                 <thead>
-                  <tr className="bg-black text-white border-b-2 border-black uppercase text-[11px]">
+                  <tr className="bg-muted text-ink border-b border-line  text-xs">
                     <th className="p-3">Order Code</th>
                     <th className="p-3">Origin Hub</th>
                     <th className="p-3">Gross Total</th>
@@ -535,33 +539,33 @@ export default function AdminDashboard() {
                     <th className="p-3 text-right">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-black">
+                <tbody className="divide-y divide-line">
                   {orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={o.id} className="hover:bg-muted transition-colors">
                       <td className="p-3 font-bold">
                         <Link
                           href={`/orders/${o.id}`}
-                          className="hover:underline text-black font-tech"
+                          className="hover:underline text-ink font-sans"
                         >
                           #{o.id.slice(0, 8).toUpperCase()}
                         </Link>
                       </td>
-                      <td className="p-3 text-neutral-800">{o.store?.name || 'Local Store'}</td>
-                      <td className="p-3 font-black text-neutral-900">₹{o.total}</td>
-                      <td className="p-3 text-emerald-700 font-bold">
+                      <td className="p-3 text-ink">{o.store?.name || 'Local Store'}</td>
+                      <td className="p-3 font-bold text-ink">₹{o.total}</td>
+                      <td className="p-3 text-brand font-bold">
                         ₹{(Number(o.total || 0) * 0.06).toFixed(2)}
                       </td>
-                      <td className="p-3 text-neutral-600">{o.paymentMethod || 'UPI'}</td>
+                      <td className="p-3 text-secondary">{o.paymentMethod || 'UPI'}</td>
                       <td className="p-3 text-right">
                         <span
-                          className={`px-2 py-0.5 font-bold uppercase border border-black text-[10px] ${
+                          className={`px-2 py-0.5 font-bold  border border-line text-xs ${
                             o.status === 'DELIVERED'
-                              ? 'bg-[#00E599] text-black'
+                              ? 'bg-brand-soft text-ink'
                               : o.status === 'PREPARING'
-                                ? 'bg-[#FFE600] text-black'
+                                ? 'bg-brand-soft text-ink'
                                 : o.status === 'CANCELLED'
-                                  ? 'bg-[#FF4800] text-white'
-                                  : 'bg-neutral-100 text-neutral-800'
+                                  ? 'bg-danger-soft text-ink'
+                                  : 'bg-muted text-ink'
                           }`}
                         >
                           {o.status}

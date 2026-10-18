@@ -2,86 +2,89 @@
 
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
+import { FormAlert } from '@/components/shared/form-alert';
+import { ProductCard } from '@/components/shared/product-card';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
-import type * as Models from '@/types';
-import { Check, Loader2, Package, Plus, Search } from 'lucide-react';
+import { useAuth } from '@/providers/auth-provider';
+import type { Category, Product, Store, StoreWithDistance } from '@/types';
+import { CheckCircle2, Loader2, Package, Search, Store as StoreIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 async function fetchCatalog(
   storeId: string,
   categoryId: string,
   search: string,
-): Promise<Models.Product[]> {
+): Promise<Product[]> {
   if (storeId) {
     const inventory = await api.inventory.byStore(storeId, categoryId || undefined);
-    return inventory.flatMap((item) =>
-      item.product
-        ? [{ ...item.product, sellingPrice: item.priceOverride ?? item.product.sellingPrice }]
-        : [],
-    );
+    return inventory
+      .flatMap((item) =>
+        item.product
+          ? [{ ...item.product, sellingPrice: item.priceOverride ?? item.product.sellingPrice }]
+          : [],
+      )
+      .filter((product) => !search || product.name.toLowerCase().includes(search.toLowerCase()));
   }
-  const result = await api.products.list({
-    categoryId: categoryId || undefined,
-    search: search || undefined,
-  });
-  return result.items;
+  return (
+    await api.products.list({ categoryId: categoryId || undefined, search: search || undefined })
+  ).items;
 }
 
 function ProductDiscoveryContent() {
-  const searchParams = useSearchParams();
-  const initialCategory = searchParams.get('categoryId') || '';
-  const initialSearch = searchParams.get('search') || '';
-  const requestedStoreId = searchParams.get('storeId') || '';
-
-  const [categories, setCategories] = useState<Models.Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [appliedSearch, setAppliedSearch] = useState(initialSearch);
-  const [products, setProducts] = useState<Models.Product[]>([]);
-  const [stores, setStores] = useState<Models.StoreWithDistance[]>([]);
-  const [selectedStore, setSelectedStore] = useState<Models.Store | null>(null);
+  const params = useSearchParams();
+  const { user } = useAuth();
+  const storeId = params.get('storeId') || '';
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [category, setCategory] = useState(params.get('categoryId') || '');
+  const [query, setQuery] = useState(params.get('search') || '');
+  const [search, setSearch] = useState(params.get('search') || '');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stores, setStores] = useState<StoreWithDistance[]>([]);
+  const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    const initData = async () => {
-      try {
-        const [cats, nearbyStores] = await Promise.all([
-          api.products.categories().catch(() => []),
-          api.stores.nearby(28.6139, 77.209, 20).catch(() => []),
-        ]);
-        setCategories(cats);
-        const storeList = nearbyStores;
-        setStores(storeList);
-
-        if (requestedStoreId) {
-          try {
-            const storeData = await api.stores.getById(requestedStoreId);
-            setSelectedStore(storeData);
-          } catch {
-            const found = storeList.find((s) => s.id === requestedStoreId);
-            if (found) setSelectedStore(found);
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    initData();
-  }, [requestedStoreId]);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [adding, setAdding] = useState<string | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let active = true;
-    fetchCatalog(requestedStoreId, selectedCategory, appliedSearch)
+    Promise.all([
+      api.products.categories().catch(() => []),
+      api.stores.nearby(28.6139, 77.209, 20).catch(() => []),
+    ]).then(([cats, nearby]) => {
+      if (active) {
+        setCategories(cats);
+        setStores(nearby);
+      }
+    });
+    if (storeId)
+      api.stores
+        .getById(storeId)
+        .then((data) => {
+          if (active) setStore(data);
+        })
+        .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [storeId]);
+  useEffect(() => {
+    let active = true;
+    fetchCatalog(storeId, category, search)
       .then((items) => {
-        if (active) setProducts(items);
+        if (active) {
+          setProducts(items);
+          setError('');
+        }
       })
       .catch(() => {
-        if (active) setProducts([]);
+        if (active) setError('We could not load the catalog. Please try again.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -89,272 +92,221 @@ function ProductDiscoveryContent() {
     return () => {
       active = false;
     };
-  }, [selectedCategory, requestedStoreId, appliedSearch]);
+  }, [storeId, category, search, reload]);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
-  const handleAddToCart = async (product: Models.Product) => {
-    setAddingId(product.id);
-    try {
-      const storeId =
-        requestedStoreId ||
-        product.inventory?.[0]?.storeId ||
-        (stores.length > 0 ? stores[0].id : null);
-      if (!storeId) {
-        alert('No store available to fulfill this item right now.');
-        return;
-      }
-      await api.cart.addItem(storeId, product.id, 1);
-      setSuccessToast(`Added ${product.name} to Tote`);
-      setTimeout(() => setSuccessToast(null), 3000);
-    } catch (err) {
-      alert(getErrorMessage(err) || 'Could not add to cart');
-    } finally {
-      setAddingId(null);
+  async function add(product: Product) {
+    setActionError('');
+    if (!user) {
+      setActionError('Sign in to add items to your cart.');
+      return;
     }
-  };
-
+    setAdding(product.id);
+    try {
+      const fulfillingStore = storeId || product.inventory?.[0]?.storeId || stores[0]?.id;
+      if (!fulfillingStore) throw new Error('No local store is available for this item right now.');
+      await api.cart.addItem(fulfillingStore, product.id, 1);
+      window.dispatchEvent(new Event('omnidrop:cart-updated'));
+      setAdded(product.id);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setAdded(null), 3000);
+    } catch (failure) {
+      setActionError(getErrorMessage(failure) || 'We could not add this item. Please try again.');
+    } finally {
+      setAdding(null);
+    }
+  }
+  function reset() {
+    setCategory('');
+    setQuery('');
+    setSearch('');
+    setLoading(true);
+    setReload((value) => value + 1);
+  }
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh flex flex-col">
       <BrutalNav />
-
-      {/* Floating success toast */}
-      {successToast && (
-        <div className="fixed top-20 right-5 z-50 animate-bounce">
-          <div className="bg-[#00E599] text-black border-2 border-black p-3 font-tech text-xs font-bold shadow-[4px_4px_0px_#000] flex items-center gap-2">
-            <Check className="w-4 h-4" />
-            <span>{successToast}</span>
-          </div>
-        </div>
-      )}
-
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
-        {/* Active Store Indicator */}
-        {selectedStore && (
-          <div className="bg-[#FFE600] border-2 border-black p-4 shadow-[4px_4px_0px_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-display font-black text-sm uppercase">
-                HUB
-              </div>
+      <main id="main-content" className="site-container flex-1 py-10 sm:py-14">
+        {storeId && store && (
+          <div className="rounded-2xl bg-brand-soft p-5 mb-7 flex items-center justify-between gap-3">
+            <div className="flex gap-3 items-center">
+              <StoreIcon size={24} className="text-brand" />
               <div>
-                <div className="font-tech text-[10px] uppercase font-bold tracking-wider text-black/70">
-                  {'// FULFILLING MICRO-HUB'}
-                </div>
-                <div className="font-display font-black text-base uppercase text-black">
-                  {selectedStore.name}
-                </div>
-                <div className="font-sans text-xs text-neutral-800">
-                  {selectedStore.address || 'Hyperlocal Hub'} · {selectedStore.rating || '4.9'} ★
-                  Rating
-                </div>
+                <p className="text-xs text-secondary">Shopping from</p>
+                <p className="font-bold">{store.name}</p>
               </div>
             </div>
             <Link
               href="/products"
-              className="btn-brutal-white !h-8 !py-0 !px-3 font-tech text-xs uppercase font-bold inline-flex items-center gap-1.5 self-start sm:self-auto"
+              className="text-xs text-brand font-bold underline underline-offset-4"
             >
-              Show All Hubs
+              All stores
             </Link>
           </div>
         )}
-
-        {/* Header Title & Filter Bar */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b-2 border-black">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// LIVE INVENTORY SHELVES'}
-            </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Direct Shelf Catalog
-            </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Zero markup groceries, sourdoughs, and dairy with dual-scan shelf accuracy.
-            </p>
+        <h1 className="section-heading">Groceries & everyday essentials.</h1>
+        <p className="section-copy text-sm">
+          Fresh favorites and little necessities. Find what you need, close to home.
+        </p>
+        <form
+          role="search"
+          className="mt-7 flex gap-3 max-w-xl"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setLoading(true);
+            setSearch(query.trim());
+            setReload((value) => value + 1);
+          }}
+        >
+          <div className="relative flex-1">
+            <label htmlFor="catalog-search" className="sr-only">
+              Search the product catalog
+            </label>
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              id="catalog-search"
+              type="search"
+              className="field-input pl-11"
+              placeholder="Search milk, bread, avocados…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
           </div>
-
-          {/* Search box */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (searchQuery !== appliedSearch) {
-                setLoading(true);
-                setAppliedSearch(searchQuery);
-              }
-            }}
-            className="w-full md:w-80 flex gap-2"
-          >
-            <div className="relative flex-1">
-              <input
-                type="text"
-                className="input-brutal pr-9"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search className="w-4 h-4 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            <button
-              type="submit"
-              className="btn-brutal-yellow !h-auto !py-0 !px-4 text-xs font-bold uppercase"
-            >
-              Find
-            </button>
-          </form>
-        </div>
-
-        {/* Category Pills */}
-        <div className="flex flex-wrap gap-2.5 items-center pb-2">
+          <button type="submit" className="button-primary">
+            Search
+          </button>
+        </form>
+        <div
+          className="flex gap-2 overflow-x-auto py-1 mt-7 mb-7"
+          aria-label="Filter products by category"
+        >
           <button
             type="button"
-            onClick={() => setSelectedCategory('')}
-            className={`px-4 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
-              !selectedCategory
-                ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000] translate-x-0.5'
-                : 'bg-white text-neutral-800 hover:bg-[#FAFAF8] shadow-[2px_2px_0px_#000]'
-            }`}
+            className="filter-pill"
+            aria-pressed={!category}
+            onClick={() => {
+              setCategory('');
+              if (category) setLoading(true);
+            }}
           >
-            All Items ({products.length})
+            Everything
           </button>
-          {categories.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(isSelected ? '' : cat.id)}
-                className={`px-3.5 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
-                  isSelected
-                    ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000] translate-x-0.5'
-                    : 'bg-white text-neutral-800 hover:bg-[#FAFAF8] shadow-[2px_2px_0px_#000]'
-                }`}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Products Grid */}
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3 font-tech text-xs">
-            <Loader2 className="w-8 h-8 animate-spin text-black" />
-            <span className="font-bold uppercase tracking-wider">
-              SYNCING RFID SHELF METRICS...
-            </span>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="card-brutal p-12 text-center bg-white">
-            <Package className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
-            <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
-              No Items Match Filter Criteria
-            </h3>
-            <p className="font-sans text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
-              Reset search query or select another category aisle.
-            </p>
+          {categories.map((item) => (
             <button
+              key={item.id}
+              type="button"
+              className="filter-pill"
+              aria-pressed={category === item.id}
               onClick={() => {
-                setSelectedCategory('');
-                setSearchQuery('');
-                setAppliedSearch('');
+                setCategory(category === item.id ? '' : item.id);
+                setLoading(true);
               }}
-              className="btn-brutal-yellow !h-10 !px-5 text-xs font-bold uppercase mt-4"
             >
-              Reset Filters
+              {item.name}
+            </button>
+          ))}
+        </div>
+        {actionError && (
+          <div className="mb-6">
+            <FormAlert message={actionError} onDismiss={() => setActionError('')} />
+            {!user && (
+              <Link href="/auth/login" className="text-sm text-brand font-bold underline">
+                Sign in to continue
+              </Link>
+            )}
+          </div>
+        )}
+        {error ? (
+          <div className="surface-panel p-6">
+            <FormAlert message={error} />
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => {
+                setLoading(true);
+                setError('');
+                setReload((value) => value + 1);
+              }}
+            >
+              Try again
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => {
-              const image =
-                product.images?.[0] ||
-                'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80';
-              return (
-                <div
+        ) : loading ? (
+          <div
+            role="status"
+            className="empty-state flex flex-col items-center gap-4 text-secondary"
+          >
+            <Loader2 size={28} className="text-brand animate-spin" />
+            Loading fresh finds…
+          </div>
+        ) : products.length ? (
+          <>
+            <p className="text-xs text-secondary mb-5">
+              {products.length} {products.length === 1 ? 'item' : 'items'}
+              {search ? ' matching “' + search + '”' : ' to discover'}
+            </p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              {products.map((product) => (
+                <ProductCard
                   key={product.id}
-                  className="card-brutal bg-white p-4 flex flex-col justify-between space-y-3"
-                >
-                  <div>
-                    {/* Top Tag & Category */}
-                    <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-2.5 font-tech text-[10px] font-bold">
-                      <span className="bg-[#FFE600] px-1.5 py-0.2 border border-black uppercase text-black">
-                        {product.category?.name || 'FRESH SHELF'}
-                      </span>
-                      <span className="text-neutral-500 uppercase">
-                        {product.weight || product.unit || 'Standard'}
-                      </span>
-                    </div>
-
-                    {/* Image Container */}
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="block relative aspect-[4/3] w-full border-2 border-black overflow-hidden mb-3 bg-neutral-100 hover:opacity-95 transition-opacity"
-                    >
-                      <img src={image} alt={product.name} className="w-full h-full object-cover" />
-                      <div className="absolute top-2 left-2 bg-black text-white font-tech text-[9px] px-1.5 py-0.5 uppercase font-bold">
-                        STOCK: IN HUB
-                      </div>
-                    </Link>
-
-                    {/* Title & Description */}
-                    <Link href={`/products/${product.id}`} className="hover:underline">
-                      <h3 className="font-display font-black text-base uppercase text-neutral-900 leading-snug line-clamp-2">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <p className="font-sans text-xs text-neutral-600 font-medium line-clamp-2 mt-1">
-                      {product.description ||
-                        'Verified grade A local farm product with 100% shelf freshness inspection.'}
-                    </p>
-                  </div>
-
-                  {/* Price Bar & Add Action */}
-                  <div className="pt-3 border-t-2 border-black flex items-center justify-between gap-2">
-                    <div>
-                      <div className="font-tech font-black text-xl text-neutral-900 tracking-tight leading-none">
-                        ₹{Number(product.sellingPrice).toFixed(2)}
-                      </div>
-                      {product.mrp && Number(product.mrp) > Number(product.sellingPrice) && (
-                        <span className="font-tech text-[10px] text-neutral-400 line-through">
-                          ₹{Number(product.mrp).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddToCart(product)}
-                      disabled={addingId === product.id}
-                      className="btn-brutal-yellow !h-9 !py-0 !px-3 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5"
-                    >
-                      {addingId === product.id ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>TOTE...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>ADD TO TOTE</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                  product={product}
+                  onAdd={add}
+                  adding={adding === product.id}
+                  added={added === product.id}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="surface-panel empty-state">
+            <span className="empty-state-icon">
+              <Package size={28} />
+            </span>
+            <h2 className="text-xl font-bold">Nothing here just yet.</h2>
+            <p className="text-sm text-secondary mt-2 mb-6">
+              Try a different search or explore another category.
+            </p>
+            <button type="button" className="button-primary" onClick={reset}>
+              Reset filters
+            </button>
           </div>
         )}
       </main>
-
+      {added && (
+        <div
+          role="status"
+          className="fixed bottom-5 left-5 right-5 sm:left-auto sm:w-auto z-50 surface-panel p-4 flex items-center gap-3 shadow-lg"
+        >
+          <CheckCircle2 size={19} className="text-brand" />
+          <span className="text-sm">Added to your cart.</span>
+          <Link href="/cart" className="font-bold text-sm text-brand underline ml-3">
+            View cart
+          </Link>
+          <button
+            type="button"
+            onClick={() => setAdded(null)}
+            className="p-1"
+            aria-label="Dismiss confirmation"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       <BrutalFooter />
     </div>
   );
 }
-
-export default function ProductDiscoveryPage() {
+export default function ProductsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center font-tech text-xs font-bold">
-          <span>INITIALIZING CATALOG KERNEL...</span>
+        <div className="empty-state" role="status">
+          Loading catalog…
         </div>
       }
     >

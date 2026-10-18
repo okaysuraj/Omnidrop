@@ -1,263 +1,182 @@
 'use client';
 
-import { ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowRight, Minus, Plus, ShoppingBag } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { SectionTag } from './section-tag';
 
-// Sample products demonstrate the storefront; live inventory is loaded in Explore.
-interface DropItem {
-  id: string;
-  name: string;
-  category: 'bakery' | 'produce' | 'pantry' | 'pharma';
-  price: number;
-  unit: string;
-  store: string;
-  distance: string;
-  stock: number;
-  prepMinutes: number;
-}
-
-const CATALOG_ITEMS: DropItem[] = [
+const items = [
   {
-    id: 'prod-1',
-    name: 'Artisanal Sourdough Batard',
-    category: 'bakery',
-    price: 6.5,
-    unit: '800g loaf',
-    store: 'Ferment & Flour',
-    distance: '0.4 km',
-    stock: 7,
-    prepMinutes: 2,
+    id: 'avocados',
+    name: 'Fresh avocados',
+    unit: '2 pieces',
+    category: 'Produce',
+    price: 149,
+    image: '/images/avocados.jpg',
   },
   {
-    id: 'prod-2',
-    name: 'Single-Origin Cold Brew Can',
-    category: 'pantry',
-    price: 4.8,
-    unit: '330ml nitro',
-    store: 'Monolith Roasters',
-    distance: '0.6 km',
-    stock: 14,
-    prepMinutes: 1,
+    id: 'bread',
+    name: 'Artisan sourdough',
+    unit: '1 loaf',
+    category: 'Bakery',
+    price: 180,
+    image: '/images/bread.jpg',
   },
   {
-    id: 'prod-3',
-    name: 'Organic Hass Avocados',
-    category: 'produce',
-    price: 5.2,
-    unit: '4 pack ripe',
-    store: 'Verdant Green Grocer',
-    distance: '0.8 km',
-    stock: 9,
-    prepMinutes: 2,
+    id: 'oranges',
+    name: 'Sweet oranges',
+    unit: '500 g',
+    category: 'Produce',
+    price: 79,
+    image: '/images/oranges.jpg',
   },
   {
-    id: 'prod-4',
-    name: 'Electrolyte Hydration Packets',
-    category: 'pharma',
-    price: 8.9,
-    unit: '6 stick box',
-    store: 'Apothecary 24/7',
-    distance: '0.3 km',
-    stock: 18,
-    prepMinutes: 1,
+    id: 'milk',
+    name: 'Fresh dairy milk',
+    unit: '1 litre',
+    category: 'Dairy',
+    price: 68,
+    image: '/images/milk.jpg',
   },
   {
-    id: 'prod-5',
-    name: 'Farmhouse Free-Range Eggs',
-    category: 'produce',
-    price: 4.95,
-    unit: '12 brown eggs',
-    store: 'Verdant Green Grocer',
-    distance: '0.8 km',
-    stock: 5,
-    prepMinutes: 1,
+    id: 'eggs',
+    name: 'Farm fresh eggs',
+    unit: '6 pieces',
+    category: 'Dairy',
+    price: 89,
+    image: '/images/eggs.jpg',
   },
   {
-    id: 'prod-6',
-    name: 'Organic Rosemary & Sea Salt Butter',
-    category: 'pantry',
-    price: 5.75,
-    unit: '200g slab',
-    store: 'Ferment & Flour',
-    distance: '0.4 km',
-    stock: 8,
-    prepMinutes: 2,
+    id: 'vegetables',
+    name: 'Fresh salad vegetables',
+    unit: 'Mixed selection',
+    category: 'Produce',
+    price: 129,
+    image: '/images/vegetables.jpg',
   },
 ];
+const filters = ['Everything', 'Produce', 'Bakery', 'Dairy'];
 
 export function DemoCatalog() {
-  const [activeCategory, setActiveCategory] = useState<
-    'all' | 'bakery' | 'produce' | 'pantry' | 'pharma'
-  >('all');
-  const [cart, setCart] = useState<{ [id: string]: number }>({ 'prod-1': 1, 'prod-2': 1 });
-  const toggleCartItem = (id: string, delta: number) => {
-    setCart((prev) => {
-      const current = prev[id] || 0;
-      const next = Math.max(0, current + delta);
-      if (next === 0) {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      }
-      return { ...prev, [id]: next };
-    });
-  };
-  const totalCartCount = Object.values(cart).reduce((a, b) => a + b, 0);
-  const totalCartValue = Object.entries(cart).reduce((sum, [id, qty]) => {
-    const item = CATALOG_ITEMS.find((i) => i.id === id);
-    return sum + (item ? item.price * qty : 0);
-  }, 0);
-  const filteredCatalog =
-    activeCategory === 'all'
-      ? CATALOG_ITEMS
-      : CATALOG_ITEMS.filter((item) => item.category === activeCategory);
+  const [category, setCategory] = useState('Everything');
+  const [basket, setBasket] = useState<Record<string, number>>({});
+  const count = Object.values(basket).reduce((sum, quantity) => sum + quantity, 0);
+  const total = items.reduce((sum, item) => sum + item.price * (basket[item.id] || 0), 0);
+  const change = (id: string, delta: number) =>
+    setBasket((current) => ({
+      ...current,
+      [id]: Math.max(0, Math.min(12, (current[id] || 0) + delta)),
+    }));
+
   return (
-    <>
-      <section id="catalog" className="border-b-2 border-black bg-white py-16 lg:py-20">
-        <div className="container-brutal">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-5 pb-4 border-b-2 border-black">
-            <div>
-              <SectionTag variant="yellow">{'// 03 LIVE SHELVES'}</SectionTag>
-              <h2 className="font-display font-black text-2xl sm:text-3xl lg:text-[2.25rem] uppercase tracking-tight text-[#0A0A0A] leading-[1.1]">
-                Fresh Inventory Ready For Dispatch
-              </h2>
-            </div>
-
-            {/* Category Filters */}
-            <div className="flex flex-wrap gap-2 font-tech text-xs">
-              {[
-                { id: 'all', label: 'All Items' },
-                { id: 'bakery', label: 'Bakery' },
-                { id: 'produce', label: 'Produce' },
-                { id: 'pantry', label: 'Pantry' },
-                { id: 'pharma', label: 'Pharma' },
-              ].map((cat) => {
-                const isActive = activeCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setActiveCategory(cat.id as typeof activeCategory)}
-                    className={`h-9 px-3.5 border-2 border-black font-bold uppercase tracking-wider transition-all duration-100 flex items-center justify-center text-[11px] ${
-                      isActive
-                        ? 'bg-[#0A0A0A] text-white shadow-[2px_2px_0px_#FFE600]'
-                        : 'bg-white hover:bg-[#FFE600] text-[#0A0A0A]'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
+    <section id="catalog" className="section-space">
+      <div className="site-container">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <h2 className="section-heading">Everyday favorites, freshly found.</h2>
+            <p className="section-copy text-sm">
+              A sample of what&apos;s nearby. Shop the live catalog for local prices and
+              availability.
+            </p>
           </div>
-
-          {/* Product Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredCatalog.map((item) => {
-              const qty = cart[item.id] || 0;
+          <Link href="/products" className="button-secondary hidden md:inline-flex shrink-0 mt-1">
+            Shop the live catalog
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div
+          className="flex gap-2 overflow-x-auto py-1 mt-7 mb-7"
+          aria-label="Filter sample products"
+        >
+          {filters.map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              className="filter-pill"
+              aria-pressed={category === filter}
+              onClick={() => setCategory(filter)}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {items
+            .filter((item) => category === 'Everything' || category === item.category)
+            .map((item) => {
+              const quantity = basket[item.id] || 0;
               return (
-                <div
-                  key={item.id}
-                  className="card-brutal p-5 sm:p-6 flex flex-col justify-between h-full bg-white"
-                >
-                  <div>
-                    {/* Store Row */}
-                    <div className="flex items-center justify-between font-tech text-[11px] mb-3 text-neutral-400 pb-2.5 border-b-2 border-black/10">
-                      <span className="font-bold text-[#0A0A0A]">{item.store}</span>
-                      <span>{item.distance} away</span>
-                    </div>
-
-                    {/* Name & Unit */}
-                    <h3 className="font-display font-black text-lg leading-snug text-[#0A0A0A]">
-                      {item.name}
-                    </h3>
-                    <p className="font-tech text-xs text-neutral-400 mt-1">{item.unit}</p>
-
-                    {/* Stock Badge */}
-                    <div className="mt-3 flex items-center gap-2.5 font-tech text-[10px]">
-                      <span className="bg-[#E5F9E0] text-[#0A0A0A] px-2.5 py-0.5 border-2 border-black font-bold uppercase">
-                        {item.stock} IN STOCK
-                      </span>
-                      <span className="text-neutral-400">Prep: ~{item.prepMinutes}m</span>
-                    </div>
+                <article key={item.id} className="surface-card p-3 flex flex-col">
+                  <div className="product-image">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
+                      className="object-cover"
+                    />
                   </div>
-
-                  {/* Price & Cart Action */}
-                  <div className="mt-6 pt-4 border-t-2 border-black flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-tech text-neutral-400 uppercase block leading-none">
-                        Price
-                      </span>
-                      <span className="font-display font-black text-xl leading-none mt-1.5 inline-block text-[#0A0A0A]">
-                        ${item.price.toFixed(2)}
-                      </span>
-                    </div>
-
-                    {qty === 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleCartItem(item.id, 1)}
-                        className="btn-brutal-yellow !h-9 !py-0 !px-4 text-xs font-bold flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add To Drop</span>
-                      </button>
-                    ) : (
-                      <div className="flex items-center h-9 border-2 border-black bg-white shadow-[2px_2px_0px_#000]">
+                  <p className="mt-4 text-[11px] text-secondary">{item.unit}</p>
+                  <h3 className="text-sm font-bold leading-6 mt-1 mb-4 min-h-12">{item.name}</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mt-auto">
+                    <span className="font-bold text-base tabular-nums">₹{item.price}</span>
+                    {quantity ? (
+                      <div className="quantity-control">
                         <button
                           type="button"
-                          onClick={() => toggleCartItem(item.id, -1)}
-                          className="w-8 h-full flex items-center justify-center hover:bg-neutral-100 transition-colors duration-100 font-bold text-xs"
-                          aria-label="Decrease quantity"
+                          onClick={() => change(item.id, -1)}
+                          aria-label={'Remove one ' + item.name + ' from preview'}
                         >
-                          <Minus className="w-3 h-3" />
+                          <Minus size={14} />
                         </button>
-                        <span className="px-3 font-tech font-bold text-xs border-x-2 border-black">
-                          {qty}
-                        </span>
+                        <output aria-label={item.name + ' preview quantity'}>{quantity}</output>
                         <button
                           type="button"
-                          onClick={() => toggleCartItem(item.id, 1)}
-                          className="w-8 h-full flex items-center justify-center bg-[#FFE600] hover:bg-yellow-400 transition-colors duration-100 font-bold text-xs"
-                          aria-label="Increase quantity"
+                          onClick={() => change(item.id, 1)}
+                          disabled={quantity >= 12}
+                          aria-label={'Add one ' + item.name + ' to preview'}
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus size={14} />
                         </button>
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => change(item.id, 1)}
+                        className="flex gap-1 items-center rounded-lg border border-line text-brand py-2 px-3 text-xs font-bold hover:bg-brand-soft"
+                        aria-label={'Add ' + item.name + ' to preview'}
+                      >
+                        <Plus size={14} />
+                        Add
+                      </button>
                     )}
                   </div>
-                </div>
+                </article>
               );
             })}
-          </div>
         </div>
-      </section>
-      {totalCartCount > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 animate-fade-in">
-          <div className="bg-[#0A0A0A] text-white border-2 border-black p-4 shadow-[4px_4px_0px_#FFE600] flex items-center gap-5">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 bg-[#FFE600] inline-block animate-pulse" />
-              <span className="font-tech text-xs font-bold uppercase tracking-wider text-[#FFE600]">
-                {totalCartCount} ITEM{totalCartCount > 1 ? 'S' : ''}
+        <div aria-live="polite" className="mt-5 text-xs text-secondary min-h-6">
+          {count > 0 ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <ShoppingBag size={16} className="text-brand" />
+              <span>
+                Preview basket: {count} {count === 1 ? 'item' : 'items'}, ₹{total}. Sample only.
               </span>
+              <Link href="/products" className="text-brand font-bold underline underline-offset-4">
+                Shop live inventory
+              </Link>
             </div>
-
-            <div className="font-display font-black text-lg text-white">
-              ${totalCartValue.toFixed(2)}
-            </div>
-
-            <Link
-              href="/explore"
-              className="btn-brutal-yellow !h-9 !py-0 !px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <span>Complete In Explore</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+          ) : (
+            <p>
+              Illustrative products and prices. Preview items won&apos;t be added to your real cart.
+            </p>
+          )}
         </div>
-      )}
-    </>
+        <Link href="/products" className="button-secondary mt-5 md:hidden">
+          Shop the live catalog
+          <ArrowRight size={16} />
+        </Link>
+      </div>
+    </section>
   );
 }

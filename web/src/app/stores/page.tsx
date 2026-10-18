@@ -2,214 +2,149 @@
 
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
+import { FormAlert } from '@/components/shared/form-alert';
+import { StoreCard } from '@/components/shared/store-card';
 import { api } from '@/lib/api';
-import type * as Models from '@/types';
-import { ArrowRight, Search, ShoppingBag, SlidersHorizontal, Store } from 'lucide-react';
-import Link from 'next/link';
+import type { StoreWithDistance } from '@/types';
+import { Loader2, Search, SlidersHorizontal, Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function StoresDiscoveryPage() {
-  const [stores, setStores] = useState<Models.StoreWithDistance[]>([]);
-  const [radiusFilter, setRadiusFilter] = useState<number>(10);
-  const [searchFilter, setSearchFilter] = useState<string>('');
-
+  const [stores, setStores] = useState<StoreWithDistance[]>([]);
+  const [radiusFilter, setRadiusFilter] = useState(10);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const nearbyStores = await api.stores.nearby(28.6139, 77.209, radiusFilter);
-        setStores(nearbyStores);
-      } catch {
-        /* ignore */
-      }
+    let active = true;
+    api.stores
+      .nearby(28.6139, 77.209, radiusFilter)
+      .then((data) => {
+        if (active) {
+          setStores(data);
+          setError('');
+        }
+      })
+      .catch(() => {
+        if (active) setError('We could not load nearby stores. Please try again.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
     };
-    loadData();
-  }, [radiusFilter]);
-
-  const filteredStores = stores.filter((s) => {
-    if (!searchFilter.trim()) return true;
-    return (
-      s.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      s.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      s.address?.toLowerCase().includes(searchFilter.toLowerCase())
-    );
-  });
-
+  }, [radiusFilter, reload]);
+  const query = searchFilter.trim().toLowerCase();
+  const filtered = stores.filter(
+    (store) =>
+      !query ||
+      [store.name, store.description, store.address].some((value) =>
+        value?.toLowerCase().includes(query),
+      ),
+  );
+  function reset() {
+    setSearchFilter('');
+    setLoading(true);
+    setRadiusFilter(25);
+    setReload((value) => value + 1);
+  }
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh flex flex-col">
       <BrutalNav />
-
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b-2 border-black">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// STORE DISCOVERY NODE'}
-            </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Verified Neighborhood Dark Stores
-            </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Active dispatch hubs accredited for 90-second packing and barcode synchronization.
-            </p>
-          </div>
-
-          {/* Quick Search */}
-          <div className="w-full md:w-80">
-            <div className="relative">
-              <input
-                type="text"
-                className="input-brutal pr-9"
-                placeholder="Search bakery, supermarket..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-              />
-              <Search className="w-4 h-4 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white border-2 border-black shadow-[3px_3px_0px_#000]">
-          <div className="flex flex-wrap items-center gap-2 font-tech text-xs">
-            <span className="font-bold text-neutral-700 uppercase flex items-center gap-1.5 mr-1">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Radius Corridor:
+      <main id="main-content" className="site-container flex-1 py-10 sm:py-14">
+        <h1 className="section-heading">Your neighborhood stores.</h1>
+        <p className="section-copy text-sm">
+          Fresh finds, familiar faces, and your next favorite shop. Discover what&apos;s close by.
+        </p>
+        <div className="surface-panel shadow-none p-4 sm:p-5 mt-8 mb-7 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-2 text-sm text-secondary mr-2">
+              <SlidersHorizontal size={17} />
+              Within
             </span>
             {[5, 10, 15, 25].map((km) => (
               <button
                 key={km}
                 type="button"
-                onClick={() => setRadiusFilter(km)}
-                className={`px-3 py-1 font-bold border-2 border-black transition-all ${
-                  radiusFilter === km
-                    ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000]'
-                    : 'bg-[#FAFAF8] text-neutral-800 hover:bg-neutral-200'
-                }`}
+                className="filter-pill px-3 py-2 min-h-10"
+                aria-pressed={radiusFilter === km}
+                onClick={() => {
+                  setLoading(true);
+                  setRadiusFilter(km);
+                  if (km === radiusFilter) setReload((value) => value + 1);
+                }}
               >
-                &le; {km} KM
+                {km} km
               </button>
             ))}
           </div>
-
-          <div className="font-tech text-xs text-neutral-600 font-bold">
-            SHOWING {filteredStores.length} ACTIVE MICRO-HUBS
+          <div className="relative w-full lg:w-80">
+            <label htmlFor="store-search" className="sr-only">
+              Search nearby stores
+            </label>
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              id="store-search"
+              type="search"
+              className="field-input pl-11"
+              placeholder="Search bakery, grocer, or address"
+              value={searchFilter}
+              onChange={(event) => setSearchFilter(event.target.value)}
+            />
           </div>
         </div>
-
-        {/* Stores Grid */}
-        {filteredStores.length === 0 ? (
-          <div className="card-brutal p-12 text-center bg-white">
-            <Store className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
-            <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
-              No Stores Located in Corridor
-            </h3>
-            <p className="font-sans text-xs text-neutral-600 mt-1 max-w-md mx-auto">
-              Try expanding your radius threshold or reset search filters.
-            </p>
+        {error ? (
+          <div className="surface-panel p-6">
+            <FormAlert message={error} />
             <button
+              type="button"
+              className="button-primary"
               onClick={() => {
-                setRadiusFilter(25);
-                setSearchFilter('');
+                setLoading(true);
+                setError('');
+                setReload((value) => value + 1);
               }}
-              className="btn-brutal-yellow !h-10 !px-5 text-xs font-bold uppercase mt-4"
             >
-              Reset Filters
+              Try again
             </button>
           </div>
+        ) : loading ? (
+          <div
+            role="status"
+            className="empty-state flex flex-col items-center gap-4 text-secondary"
+          >
+            <Loader2 size={28} className="animate-spin text-brand" />
+            Finding nearby stores…
+          </div>
+        ) : filtered.length ? (
+          <>
+            <p className="text-xs text-secondary mb-5">
+              {filtered.length} {filtered.length === 1 ? 'store' : 'stores'} found near Central
+              Delhi
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map((store) => (
+                <StoreCard key={store.id} store={store} />
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredStores.map((store) => (
-              <div
-                key={store.id}
-                className="card-brutal bg-white p-5 flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  {/* Top Status Strip */}
-                  <div className="flex items-center justify-between border-b-2 border-black pb-2.5 mb-3 font-tech text-xs">
-                    <span className="flex items-center gap-1.5 font-bold text-neutral-800">
-                      <span className="w-2 h-2 rounded-full bg-[#00E599] animate-pulse"></span>
-                      <span>DISPATCH READY</span>
-                    </span>
-                    <span className="badge-brutal bg-[#FFE600] text-black text-[10px]">
-                      ★ {store.rating || '4.8'}
-                    </span>
-                  </div>
-
-                  {/* Store Name & Description */}
-                  <h3 className="font-display font-black text-xl text-neutral-900 uppercase tracking-tight mb-1">
-                    {store.name}
-                  </h3>
-                  <p className="font-sans text-xs text-neutral-600 font-medium line-clamp-2 mb-3">
-                    {store.description}
-                  </p>
-
-                  {/* Photo Container */}
-                  <div className="relative aspect-[16/9] w-full border-2 border-black overflow-hidden mb-3 bg-neutral-100">
-                    <img
-                      src={
-                        store.imageUrl ||
-                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80'
-                      }
-                      alt={store.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-2 left-2 bg-black text-white font-tech text-[10px] px-2 py-0.5 font-bold uppercase">
-                      LOC: {store.address?.split(',')[0] || 'Central Delhi'}
-                    </div>
-                  </div>
-
-                  {/* Operational Telemetry Grid */}
-                  <div className="grid grid-cols-3 gap-2 p-2.5 bg-[#FAFAF8] border-2 border-black font-tech text-xs text-center">
-                    <div>
-                      <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                        Corridor
-                      </span>
-                      <span className="font-black text-neutral-900">
-                        {store.distance ? `${Number(store.distance).toFixed(1)} km` : '0.8 km'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                        Doorstep
-                      </span>
-                      <span className="font-black text-[#FF4800]">
-                        {store.estimatedDeliveryMinutes
-                          ? `${store.estimatedDeliveryMinutes} min`
-                          : '15 min'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                        SLA
-                      </span>
-                      <span className="font-black text-[#059669]">99.8%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                  <Link
-                    href={`/stores/${store.id}`}
-                    className="flex-1 btn-brutal-white !h-10 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
-                  >
-                    <span>Hub Details</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                  <Link
-                    href={`/products?storeId=${store.id}`}
-                    className="flex-1 btn-brutal-yellow !h-10 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Shop Items</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
+          <div className="surface-panel empty-state">
+            <span className="empty-state-icon">
+              <Store size={28} />
+            </span>
+            <h2 className="text-xl font-bold">No stores found nearby.</h2>
+            <p className="text-sm text-secondary mt-2 mb-6">
+              Try a wider distance or a different search.
+            </p>
+            <button type="button" className="button-primary" onClick={reset}>
+              Reset filters
+            </button>
           </div>
         )}
       </main>
-
       <BrutalFooter />
     </div>
   );

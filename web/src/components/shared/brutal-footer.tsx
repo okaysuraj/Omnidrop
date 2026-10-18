@@ -1,110 +1,98 @@
-'use client';
-
+import { ArrowUpRight, Heart, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { BrandLogo } from './brand-logo';
 
 export function BrutalFooter() {
   return (
-    <footer className="bg-neutral-950 text-neutral-400 pt-10 pb-8 font-tech text-xs border-t-2 border-black">
-      <div className="container-brutal">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-8 border-b-2 border-neutral-800">
-          <div className="md:col-span-5 space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-white text-black flex items-center justify-center font-display font-black text-sm border-2 border-white shadow-[2px_2px_0px_#FFE600]">
-                ⚡
-              </div>
-              <span className="font-display font-black text-base tracking-tight uppercase text-white">
-                OMNIDROP KERNEL
-              </span>
-            </div>
-            <p className="font-sans text-neutral-400 text-xs leading-relaxed max-w-sm">
-              Hyperlocal quick-commerce protocol connecting verified neighborhood dark stores,
-              artisan bakeries, and pharmacies with sub-20m doorstep dispatch.
+    <footer className="bg-surface border-t border-line pt-14 pb-7">
+      <div className="site-container">
+        <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-10 pb-12">
+          <div className="col-span-2 lg:col-span-5">
+            <BrandLogo />
+            <p className="mt-5 max-w-xs text-sm leading-7 text-secondary">
+              Your neighborhood, delivered. Fresh finds and everyday essentials from the local
+              stores you love.
             </p>
-            <div className="text-[11px] text-neutral-500 font-bold">
-              {'LOC: 28.6139° N, 77.2090° E // CENTRAL DELHI'}
-            </div>
+            <span className="mt-5 inline-flex items-center gap-2 text-xs text-secondary">
+              <Heart size={15} className="text-brand" />A little more local. A lot more convenient.
+            </span>
           </div>
-
-          <div className="md:col-span-2 space-y-2">
-            <div className="text-white font-bold uppercase tracking-wider text-[11px]">
-              Marketplace
-            </div>
-            <ul className="space-y-1.5 text-neutral-400">
+          <div className="lg:col-span-2">
+            <h2 className="font-bold text-sm mb-5">Your marketplace</h2>
+            <ul className="space-y-3 text-sm text-secondary">
               <li>
-                <Link href="/explore" className="hover:text-[#FFE600] transition-colors">
-                  Local Stores
+                <Link href="/explore" className="hover:text-brand">
+                  Explore nearby
                 </Link>
               </li>
               <li>
-                <Link href="/products" className="hover:text-[#FFE600] transition-colors">
-                  Live Catalog
+                <Link href="/stores" className="hover:text-brand">
+                  Local stores
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="hover:text-[#FFE600] transition-colors">
-                  Active Tote
+                <Link href="/products" className="hover:text-brand">
+                  Shop essentials
                 </Link>
               </li>
               <li>
-                <Link href="/orders" className="hover:text-[#FFE600] transition-colors">
-                  Track Orders
+                <Link href="/orders" className="hover:text-brand">
+                  Track an order
                 </Link>
               </li>
             </ul>
           </div>
-
-          <div className="md:col-span-2 space-y-2">
-            <div className="text-white font-bold uppercase tracking-wider text-[11px]">
-              Ecosystem
-            </div>
-            <ul className="space-y-1.5 text-neutral-400">
+          <div className="lg:col-span-2">
+            <h2 className="font-bold text-sm mb-5">Our community</h2>
+            <ul className="space-y-3 text-sm text-secondary">
               <li>
-                <Link href="/shopkeeper/login" className="hover:text-[#FFE600] transition-colors">
-                  Merchant Portal
+                <Link
+                  href="/shopkeeper/login"
+                  className="inline-flex gap-1 items-center hover:text-brand"
+                >
+                  For shopkeepers
+                  <ArrowUpRight size={13} />
                 </Link>
               </li>
               <li>
-                <Link href="/auth/register" className="hover:text-[#FFE600] transition-colors">
-                  Courier Fleet
+                <Link
+                  href="/auth/register"
+                  className="inline-flex gap-1 items-center hover:text-brand"
+                >
+                  Become a courier
+                  <ArrowUpRight size={13} />
                 </Link>
               </li>
               <li>
-                <Link href="/admin/dashboard" className="hover:text-[#FFE600] transition-colors">
-                  Admin Console
+                <Link href="/profile" className="hover:text-brand">
+                  Your account
+                </Link>
+              </li>
+              <li>
+                <Link href="/#faq" className="hover:text-brand">
+                  Questions & answers
                 </Link>
               </li>
             </ul>
           </div>
-
-          <div className="md:col-span-3 space-y-2">
-            <div className="text-white font-bold uppercase tracking-wider text-[11px]">
-              Telemetry
-            </div>
-            <div className="p-3 bg-neutral-900 border-2 border-neutral-800 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span>GATEWAY</span>
-                <span className="text-[#00E599] font-bold">PORT :4000 ONLINE</span>
-              </div>
-              <div className="flex justify-between">
-                <span>DB CLOUD</span>
-                <span className="text-white font-bold">NEON POSTGRES 16</span>
-              </div>
-              <div className="flex justify-between">
-                <span>AUTH ENGINE</span>
-                <span className="text-[#FFE600] font-bold">FIREBASE SHA-256</span>
-              </div>
-            </div>
+          <div className="col-span-2 lg:col-span-3 rounded-2xl bg-muted p-6 self-start">
+            <ShoppingBag size={24} className="text-brand" />
+            <h2 className="font-bold text-sm mt-3">Good things are close by.</h2>
+            <p className="text-xs text-secondary mt-2 leading-6">
+              Discover what your neighborhood has in store.
+            </p>
+            <Link
+              href="/stores"
+              className="inline-flex gap-2 items-center text-sm font-bold text-brand mt-4"
+            >
+              Find your local store
+              <ArrowUpRight size={16} />
+            </Link>
           </div>
         </div>
-
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-neutral-500">
-          <div>
-            © {new Date().getFullYear()} Omnidrop Autonomous Logistics Corp. Zero shelf markups.
-          </div>
-          <div className="flex gap-4">
-            <span className="text-neutral-400">REST PROTOCOL v2.4</span>
-            <span>SOCKET.IO REALTIME</span>
-          </div>
+        <div className="border-t border-line pt-6 flex flex-col sm:flex-row gap-3 justify-between text-xs text-secondary">
+          <p>© {new Date().getFullYear()} Omnidrop. All rights reserved.</p>
+          <p>Made for your everyday.</p>
         </div>
       </div>
     </footer>

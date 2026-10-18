@@ -2,350 +2,289 @@
 
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
+import { FormAlert } from '@/components/shared/form-alert';
+import { ProductCard } from '@/components/shared/product-card';
+import { StoreCard } from '@/components/shared/store-card';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
-import type * as Models from '@/types';
-import { ArrowRight, Search, ShoppingBag, Store } from 'lucide-react';
+import type { Category, Product, StoreWithDistance } from '@/types';
+import {
+  ArrowRight,
+  Carrot,
+  ChevronRight,
+  Cookie,
+  Leaf,
+  Loader2,
+  Milk,
+  Search,
+  ShoppingBag,
+  Store,
+} from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+
+function CategoryIcon({ name }: { name: string }) {
+  const value = name.toLowerCase();
+  const Icon = value.includes('bak')
+    ? Cookie
+    : value.includes('dairy')
+      ? Milk
+      : value.includes('veg')
+        ? Carrot
+        : value.includes('fruit')
+          ? Leaf
+          : ShoppingBag;
+  return <Icon size={27} />;
+}
 
 export default function ExplorePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [categories, setCategories] = useState<Models.Category[]>([]);
-  const [stores, setStores] = useState<Models.StoreWithDistance[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Models.Product[]>([]);
-
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [stores, setStores] = useState<StoreWithDistance[]>([]);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Product[]>([]);
+  const [searched, setSearched] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/login');
+      router.replace('/auth/login');
       return;
     }
-
-    const loadData = async () => {
-      try {
-        const [cats, nearbyStores] = await Promise.all([
-          api.products.categories().catch(() => []),
-          api.stores.nearby(28.6139, 77.209, 25).catch(() => []),
-        ]);
-        setCategories(cats);
-        setStores(nearbyStores);
-      } catch {
-        /* ignore */
-      }
+    if (!user) return;
+    let active = true;
+    Promise.all([api.products.categories(), api.stores.nearby(28.6139, 77.209, 25)])
+      .then(([cats, nearby]) => {
+        if (active) {
+          setCategories(cats);
+          setStores(nearby);
+          setError('');
+        }
+      })
+      .catch(() => {
+        if (active) setError('We could not load your neighborhood. Please try again.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
     };
-
-    if (user) loadData();
-  }, [user, authLoading, router]);
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  }, [user, authLoading, router, reload]);
+  async function search(event: FormEvent) {
+    event.preventDefault();
+    if (!query.trim()) return;
+    setSearching(true);
+    setError('');
     try {
-      const results = await api.products.search(searchQuery);
-      setSearchResults(results || []);
+      const found = await api.products.search(query.trim());
+      setResults(found || []);
+      setSearched(query.trim());
     } catch {
-      /* ignore */
+      setError('Search is unavailable right now. Please try again.');
+    } finally {
+      setSearching(false);
     }
-  };
-
+  }
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh flex flex-col">
       <BrutalNav />
-
-      <main className="container-brutal py-8 sm:py-12 space-y-10">
-        {/* 1. WELCOME & SEARCH HEADER */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b-2 border-black">
+      <main id="main-content" className="site-container flex-1 py-9 sm:py-12 space-y-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// HYPERLOCAL RADAR'}
-            </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Welcome, {user?.fullName?.split(' ')[0] || 'Member'}
+            <p className="text-sm text-secondary mb-2">A good day starts nearby.</p>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-[-.045em]">
+              What&apos;s fresh today{user?.fullName ? ', ' + user.fullName.split(' ')[0] : ''}?
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Active node: Central Delhi Sector 4. Verified neighborhood dark stores within 1.2km
-              radius.
-            </p>
           </div>
-
-          {/* Brutalist Search Bar */}
-          <div className="w-full md:w-96 flex gap-2">
+          <form role="search" onSubmit={search} className="flex gap-2 w-full lg:w-[430px]">
             <div className="relative flex-1">
+              <label htmlFor="explore-search" className="sr-only">
+                Search your neighborhood
+              </label>
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-subtle" />
               <input
-                type="text"
-                className="input-brutal pr-9"
-                placeholder="Search sourdough, milk, avocados..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                id="explore-search"
+                className="field-input pl-11"
+                type="search"
+                placeholder="Milk, sourdough, something fresh…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
               />
-              <Search className="w-4 h-4 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+            <button type="submit" className="button-primary px-4" disabled={searching}>
+              {searching ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <ArrowRight size={18} />
+              )}
+              <span className="sr-only">Search</span>
+            </button>
+          </form>
+        </div>
+        {error && (
+          <div>
+            <FormAlert message={error} />
             <button
-              onClick={handleSearch}
-              className="btn-brutal-yellow !h-auto !py-0 !px-4 text-xs font-bold uppercase"
+              type="button"
+              className="text-brand text-sm font-bold underline"
+              onClick={() => {
+                setLoading(true);
+                setError('');
+                setReload((value) => value + 1);
+              }}
             >
-              Scan
+              Try again
             </button>
           </div>
-        </div>
-
-        {/* 2. FLASH DISPATCH HERO BANNER */}
-        <section className="card-brutal-dark p-6 sm:p-8 relative overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
-            <div className="md:col-span-8 space-y-3">
-              <span className="badge-brutal bg-[#FFE600] text-black font-bold">
-                ⚡ ZERO SHELF MARKUP PROTOCOL
-              </span>
-              <h2 className="font-display font-black text-2xl sm:text-4xl uppercase tracking-tight leading-tight text-white">
-                Fresh farm groceries & bakery batches dispatched in under 18 mins.
-              </h2>
-              <p className="font-sans text-neutral-300 text-xs sm:text-sm max-w-xl font-medium leading-relaxed">
-                Direct connection to local verified dark-store terminals. Dual-scanned at the shelf,
-                sealed in tamper-evident totes, and routed via urban cycleway couriers.
-              </p>
-              <div className="pt-2 flex flex-wrap gap-3">
-                <Link
-                  href="/products"
-                  className="btn-brutal-yellow !h-10 !py-0 !px-5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Browse Full Shelf Catalog</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-                <Link
-                  href="/stores"
-                  className="btn-brutal-white !h-10 !py-0 !px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  <Store className="w-3.5 h-3.5" />
-                  <span>View All 3 Micro-Hubs</span>
-                </Link>
-              </div>
-            </div>
-
-            <div className="md:col-span-4 hidden md:flex flex-col gap-2 font-tech text-xs bg-neutral-900 border-2 border-neutral-700 p-4 shadow-[3px_3px_0px_#FFE600]">
-              <div className="flex justify-between border-b border-neutral-800 pb-1.5">
-                <span className="text-neutral-400">MEDIAN DISPATCH</span>
-                <span className="text-[#00E599] font-bold">3.8 MINS</span>
-              </div>
-              <div className="flex justify-between border-b border-neutral-800 pb-1.5">
-                <span className="text-neutral-400">DOORSTEP ARRIVAL</span>
-                <span className="text-[#FFE600] font-bold">17.4 MINS</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">DELIVERY CHARGE</span>
-                <span className="text-white font-bold">₹40 / FLAT</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. SEARCH RESULTS IF ACTIVE */}
-        {searchResults.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b-2 border-black">
-              <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900 flex items-center gap-2">
-                <span>Search Hits: &quot;{searchQuery}&quot;</span>
-                <span className="badge-brutal bg-[#FFE600] text-black text-[11px]">
-                  {searchResults.length} found
-                </span>
-              </h3>
+        )}
+        {searched ? (
+          <section>
+            <div className="flex justify-between items-center mb-6 gap-3">
+              <h2 className="text-xl font-bold">Results for &ldquo;{searched}&rdquo;</h2>
               <button
-                onClick={() => setSearchResults([])}
-                className="font-tech text-xs font-bold underline hover:bg-[#FF4800] hover:text-white px-2 py-0.5"
+                type="button"
+                className="text-sm text-brand font-semibold"
+                onClick={() => {
+                  setSearched('');
+                  setQuery('');
+                }}
               >
-                Clear Results [X]
+                Clear search
               </button>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {searchResults.map((product) => (
-                <div
-                  key={product.id}
-                  className="card-brutal p-3 bg-white flex flex-col justify-between"
-                >
-                  <div className="relative aspect-square w-full border-2 border-black overflow-hidden mb-2.5 bg-neutral-100">
-                    <img
-                      src={
-                        product.images?.[0] ||
-                        'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'
-                      }
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-1.5 left-1.5 bg-black text-white font-tech text-[9px] px-1.5 py-0.2 uppercase font-bold">
-                      {product.unit}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-display font-bold text-sm text-neutral-900 truncate">
-                      {product.name}
-                    </h4>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="font-tech font-black text-base text-neutral-900">
-                        ₹{Number(product.sellingPrice).toFixed(2)}
-                      </span>
-                      <Link
-                        href={`/products?search=${encodeURIComponent(product.name)}`}
-                        className="btn-brutal-yellow !h-7 !py-0 !px-2 text-[10px] font-bold uppercase"
-                      >
-                        Inspect
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {results.length ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {results.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="surface-panel empty-state">
+                <span className="empty-state-icon">
+                  <Search size={26} />
+                </span>
+                <h3 className="font-bold text-lg">No matches this time.</h3>
+                <p className="text-secondary text-sm mt-2">
+                  Try another product or browse your local stores.
+                </p>
+              </div>
+            )}
           </section>
-        )}
-
-        {/* 4. CATEGORY SELECTOR CHIPS */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-black text-xl sm:text-2xl uppercase tracking-tight text-neutral-900 flex items-center gap-2">
-              <span>Shelf Categories</span>
-              <span className="font-tech text-xs text-neutral-500 font-bold">
-                ({categories.length} AISLES)
-              </span>
-            </h3>
-            <Link
-              href="/products"
-              className="font-tech text-xs font-bold uppercase underline hover:bg-[#FFE600] px-1.5 py-0.5"
-            >
-              Full Catalog →
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/products?categoryId=${cat.id}`}
-                className="card-brutal p-3 bg-white hover:bg-[#FFE600] transition-colors group flex flex-col justify-between"
-              >
-                <div className="relative aspect-[4/3] w-full border-2 border-black overflow-hidden mb-2 bg-neutral-100">
-                  <img
-                    src={
-                      cat.imageUrl ||
-                      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&q=80'
-                    }
-                    alt={cat.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                </div>
-                <div>
-                  <div className="font-display font-black text-sm uppercase text-neutral-900 tracking-tight">
-                    {cat.name}
-                  </div>
-                  <div className="font-tech text-[10px] text-neutral-600 font-bold uppercase mt-0.5">
-                    Live Inventory Active
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* 5. NEARBY VERIFIED STORES (MICRO-HUBS) */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-display font-black text-xl sm:text-2xl uppercase tracking-tight text-neutral-900 flex items-center gap-2">
-                <span>Verified Neighborhood Micro-Hubs</span>
-              </h3>
-              <p className="font-sans text-xs text-neutral-600 font-medium">
-                Within 10km radius from current GPS location.
-              </p>
-            </div>
-            <Link
-              href="/stores"
-              className="font-tech text-xs font-bold uppercase underline hover:bg-[#FFE600] px-1.5 py-0.5"
-            >
-              Stores Directory →
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {stores.map((store) => (
-              <div
-                key={store.id}
-                className="card-brutal bg-white p-5 flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  {/* Store Header */}
-                  <div className="flex items-start justify-between gap-2 border-b-2 border-black pb-3 mb-3">
-                    <div>
-                      <div className="font-tech text-[10px] text-neutral-500 font-bold uppercase">
-                        STORE NODE #{store.id.slice(0, 6)}
-                      </div>
-                      <h4 className="font-display font-black text-lg text-neutral-900 uppercase tracking-tight">
-                        {store.name}
-                      </h4>
-                    </div>
-                    <span className="badge-brutal bg-[#00E599] text-black text-[10px] flex-shrink-0">
-                      VERIFIED
-                    </span>
-                  </div>
-
-                  {/* Store Image */}
-                  <div className="relative aspect-[16/9] w-full border-2 border-black overflow-hidden mb-3 bg-neutral-100">
-                    <img
-                      src={
-                        store.imageUrl ||
-                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80'
-                      }
-                      alt={store.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-2 left-2 bg-black text-white font-tech text-[10px] px-2 py-0.5 font-bold uppercase">
-                      ★ {store.rating || '4.8'} ({store.totalRatings || 42})
-                    </div>
-                  </div>
-
-                  <p className="font-sans text-xs text-neutral-600 leading-relaxed font-medium line-clamp-2">
-                    {store.description}
-                  </p>
-                </div>
-
-                {/* Telemetry Metrics */}
-                <div className="space-y-3 pt-2 border-t-2 border-black/10 font-tech text-xs">
-                  <div className="grid grid-cols-2 gap-2 bg-[#FAFAF8] border-2 border-black p-2.5">
-                    <div>
-                      <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                        Proximity
-                      </span>
-                      <span className="font-black text-neutral-900">
-                        {store.distance ? `${Number(store.distance).toFixed(1)} km` : '0.8 km'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                        Est. Drop
-                      </span>
-                      <span className="font-black text-[#FF4800]">
-                        {store.estimatedDeliveryMinutes
-                          ? `${store.estimatedDeliveryMinutes} min`
-                          : '16 min'}
-                      </span>
-                    </div>
-                  </div>
-
+        ) : (
+          <>
+            <section className="grid md:grid-cols-[1.1fr_1fr] bg-brand-soft rounded-[28px] overflow-hidden">
+              <div className="p-7 sm:p-10 lg:p-12 self-center">
+                <span className="inline-flex items-center gap-2 text-xs text-brand font-semibold">
+                  <Leaf size={16} />
+                  Everyday goodness, locally found
+                </span>
+                <h2 className="mt-5 text-3xl lg:text-[42px] leading-[1.15] tracking-[-.045em] font-bold max-w-md">
+                  Fresh finds for whatever today brings.
+                </h2>
+                <p className="text-sm text-secondary leading-7 max-w-sm mt-4">
+                  Your trusted local stores, together in one place. Pick up a favorite or discover
+                  something new.
+                </p>
+                <Link href="/products" className="button-primary mt-6">
+                  Shop essentials
+                  <ArrowRight size={17} />
+                </Link>
+              </div>
+              <div className="relative min-h-60 md:min-h-[380px]">
+                <Image
+                  src="/hero_essentials.jpg"
+                  alt="Fresh bread, oranges and herbs ready for delivery"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 560px"
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            </section>
+            {categories.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-xl font-bold tracking-tight">Shop by category</h2>
                   <Link
-                    href={`/stores/${store.id}`}
-                    className="w-full btn-brutal-yellow !h-10 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    href="/products"
+                    className="inline-flex gap-1 items-center text-sm font-semibold text-brand"
                   >
-                    <span>Inspect Shelves</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    See all
+                    <ChevronRight size={16} />
                   </Link>
                 </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mt-4">
+                  {categories.slice(0, 6).map((category) => (
+                    <Link
+                      key={category.id}
+                      href={'/products?categoryId=' + encodeURIComponent(category.id)}
+                      className="category-tile"
+                    >
+                      <span className="category-icon">
+                        <CategoryIcon name={category.name} />
+                      </span>
+                      {category.name}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+            <section>
+              <div className="flex justify-between items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+                    Good things around the corner.
+                  </h2>
+                  <p className="text-sm text-secondary mt-2">Discover stores near Central Delhi.</p>
+                </div>
+                <Link
+                  href="/stores"
+                  className="inline-flex gap-1 items-center text-sm font-semibold text-brand whitespace-nowrap"
+                >
+                  All stores
+                  <ChevronRight size={16} />
+                </Link>
               </div>
-            ))}
-          </div>
-        </section>
+              {loading ? (
+                <div
+                  role="status"
+                  className="empty-state text-secondary flex flex-col items-center gap-3"
+                >
+                  <Loader2 size={27} className="text-brand animate-spin" />
+                  Finding your local favorites…
+                </div>
+              ) : stores.length ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {stores.slice(0, 6).map((store) => (
+                    <StoreCard key={store.id} store={store} />
+                  ))}
+                </div>
+              ) : (
+                !error && (
+                  <div className="surface-panel empty-state">
+                    <span className="empty-state-icon">
+                      <Store size={28} />
+                    </span>
+                    <h3 className="font-bold text-lg">No nearby stores just yet.</h3>
+                    <p className="text-sm text-secondary mt-2 mb-5">
+                      Try a wider search to see what&apos;s available.
+                    </p>
+                    <Link href="/stores" className="button-primary">
+                      Explore stores
+                    </Link>
+                  </div>
+                )
+              )}
+            </section>
+          </>
+        )}
       </main>
-
       <BrutalFooter />
     </div>
   );

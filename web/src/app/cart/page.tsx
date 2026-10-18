@@ -2,11 +2,22 @@
 
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
+import { FormAlert } from '@/components/shared/form-alert';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/providers/auth-provider';
-import type * as Models from '@/types';
-import { ArrowRight, Minus, Plus, ShieldCheck, ShoppingBag, Trash2 } from 'lucide-react';
+import type { Cart } from '@/types';
+import {
+  ArrowRight,
+  ChevronLeft,
+  Loader2,
+  Minus,
+  Plus,
+  ShieldCheck,
+  ShoppingBag,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -14,321 +25,322 @@ import { useEffect, useState } from 'react';
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [cart, setCart] = useState<Models.Cart | null>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
-  const [couponCode, setCouponCode] = useState('');
-  const [couponResult, setCouponResult] = useState<{
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [validating, setValidating] = useState(false);
+  const [promotion, setPromotion] = useState<{
     valid: boolean;
     discount?: number;
     message?: string;
   } | null>(null);
-
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/login');
+      router.replace('/auth/login');
       return;
     }
-    const loadCart = async () => {
-      try {
-        const data = await api.cart.get();
-        setCart(data);
-      } catch {
-        /* ignore */
-      }
-      setLoading(false);
+    if (!user) return;
+    let active = true;
+    api.cart
+      .get()
+      .then((data) => {
+        if (active) {
+          setCart(data);
+          setError('');
+        }
+      })
+      .catch(() => {
+        if (active) setError('We could not load your cart. Please try again.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
     };
-    if (user) loadCart();
-  }, [user, authLoading, router]);
-
-  const updateQuantity = async (itemId: string, quantity: number) => {
+  }, [user, authLoading, router, reload]);
+  async function update(id: string, quantity: number) {
+    setPending(id);
+    setError('');
     try {
-      const updated = await api.cart.updateQuantity(itemId, quantity);
-      setCart(updated);
-    } catch {
-      /* ignore */
+      const next =
+        quantity <= 0 ? await api.cart.removeItem(id) : await api.cart.updateQuantity(id, quantity);
+      setCart(next);
+      setPromotion(null);
+      setAppliedCoupon('');
+      window.dispatchEvent(new Event('omnidrop:cart-updated'));
+    } catch (failure) {
+      setError(getErrorMessage(failure) || 'We could not update your cart. Please try again.');
+    } finally {
+      setPending(null);
     }
-  };
-
-  const removeItem = async (itemId: string) => {
+  }
+  async function applyCoupon() {
+    if (!coupon.trim()) return;
+    setValidating(true);
     try {
-      const updated = await api.cart.removeItem(itemId);
-      setCart(updated);
-    } catch {
-      /* ignore */
+      const result = await api.promotions.validate(coupon.trim(), cart?.subtotal || 0);
+      setPromotion(result);
+      setAppliedCoupon(result.valid ? coupon.trim() : '');
+    } catch (failure) {
+      setPromotion({ valid: false, message: getErrorMessage(failure) });
+      setAppliedCoupon('');
+    } finally {
+      setValidating(false);
     }
-  };
-
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) return;
-    try {
-      const result = await api.promotions.validate(couponCode, cart?.subtotal || 0);
-      setCouponResult(result);
-    } catch (err) {
-      setCouponResult({ valid: false, message: getErrorMessage(err) });
-    }
-  };
-
+  }
   const items = cart?.items || [];
-  const discountAmount = couponResult?.valid ? Number(couponResult.discount || 0) : 0;
-  const finalTotal = Math.max(0, (cart?.total || 0) - discountAmount);
-
+  const discount = promotion?.valid ? Number(promotion.discount || 0) : 0;
+  const total = Math.max(0, Number(cart?.total || 0) - discount);
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh flex flex-col">
       <BrutalNav />
-
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
-        {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+      <main id="main-content" className="site-container flex-1 py-9 sm:py-12">
+        <Link
+          href="/products"
+          className="text-sm text-secondary inline-flex items-center gap-1 hover:text-brand mb-6"
+        >
+          <ChevronLeft size={16} />
+          Continue shopping
+        </Link>
+        <div className="flex items-center justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// ACTIVE MANIFEST'}
-            </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Your Delivery Tote
-            </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Dual-scan verified grocery items scheduled for sub-20 minute dispatch.
-            </p>
+            <h1 className="section-heading">Your cart.</h1>
+            <p className="text-sm text-secondary mt-3">A few good things for your everyday.</p>
           </div>
-
-          <Link
-            href="/explore"
-            className="btn-brutal-white !h-9 !py-0 !px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <span>Add More Items</span>
-            <Plus className="w-3.5 h-3.5" />
-          </Link>
+          {!loading && items.length > 0 && (
+            <span className="status-badge">
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+            </span>
+          )}
         </div>
-
-        {loading ? (
-          <div className="py-20 text-center font-tech text-xs font-bold uppercase">
-            UPDATING TOTE SERIALIZATION...
+        {error && (
+          <div className="mb-6">
+            <FormAlert message={error} onDismiss={() => setError('')} />
+            {!cart && (
+              <button
+                type="button"
+                className="button-primary mb-4"
+                onClick={() => {
+                  setLoading(true);
+                  setReload((value) => value + 1);
+                }}
+              >
+                Try again
+              </button>
+            )}
           </div>
-        ) : items.length === 0 ? (
-          <div className="card-brutal p-12 text-center bg-white max-w-lg mx-auto">
-            <ShoppingBag className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
-            <h2 className="font-display font-black text-2xl uppercase tracking-tight text-neutral-900">
-              Your Tote Is Empty
-            </h2>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 mt-1 mb-6">
-              Explore nearby micro-hubs, fresh bakeries, and organic grocers in your quadrant.
+        )}
+        {loading ? (
+          <div
+            role="status"
+            className="empty-state flex flex-col items-center gap-4 text-secondary"
+          >
+            <Loader2 size={28} className="animate-spin text-brand" />
+            Loading your cart…
+          </div>
+        ) : !items.length ? (
+          <div className="surface-panel empty-state">
+            <span className="empty-state-icon">
+              <ShoppingBag size={29} />
+            </span>
+            <h2 className="text-2xl font-bold tracking-tight">Your next fresh find is waiting.</h2>
+            <p className="text-secondary text-sm mt-3 mb-7">
+              Your cart is empty. Let&apos;s change that with something local.
             </p>
-            <Link
-              href="/explore"
-              className="btn-brutal-yellow inline-flex !h-11 !px-6 text-xs font-bold uppercase tracking-wider items-center gap-2"
-            >
-              <span>Discover Local Stores</span>
-              <ArrowRight className="w-4 h-4" />
+            <Link href="/explore" className="button-primary">
+              Explore your neighborhood
+              <ArrowRight size={17} />
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Items Column */}
-            <div className="lg:col-span-8 space-y-4">
-              <div className="card-brutal bg-white p-5 border-2 border-black shadow-[4px_4px_0px_#000]">
-                <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4 font-tech text-xs font-bold">
-                  <span className="uppercase text-neutral-800">
-                    ITEMS SCHEDULED FOR DISPATCH ({items.length})
-                  </span>
-                  <span className="text-[#059669] flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-[#00E599] animate-pulse"></span>
-                    SHELF SYNC OK
-                  </span>
-                </div>
-
-                <div className="divide-y-2 border-black/10">
-                  {items.map((item) => {
-                    const product = item.product;
-                    const image =
-                      product?.images?.[0] ||
-                      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80';
-                    return (
-                      <div
-                        key={item.id}
-                        className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                      >
-                        {/* Item Details */}
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-16 h-16 border-2 border-black relative overflow-hidden bg-neutral-100 flex-shrink-0">
-                            <img
-                              src={image}
-                              alt={product?.name || 'Product'}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <span className="font-tech text-[10px] uppercase font-bold text-neutral-500">
-                              {product?.unit || 'FRESH SHELF'}
-                            </span>
-                            <h4 className="font-display font-black text-base uppercase text-neutral-900 leading-snug">
-                              {product?.name || 'Omnidrop Item'}
-                            </h4>
-                            <div className="font-tech text-xs text-neutral-700 font-bold mt-0.5">
-                              ₹
-                              {Number(item.effectivePrice || product?.sellingPrice || 0).toFixed(2)}{' '}
-                              each
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quantity Controls & Total */}
-                        <div className="flex items-center justify-between sm:justify-end gap-5">
-                          <div className="flex items-center border-2 border-black bg-white shadow-[2px_2px_0px_#000]">
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-8 h-8 flex items-center justify-center hover:bg-[#FFE600] font-bold border-r-2 border-black"
-                              aria-label="Decrease"
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-9 text-center font-tech font-bold text-xs">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-8 h-8 flex items-center justify-center hover:bg-[#FFE600] font-bold border-l-2 border-black"
-                              aria-label="Increase"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <div className="font-tech font-black text-base text-neutral-900 min-w-[70px] text-right">
-                            ₹
-                            {(
-                              Number(item.effectivePrice || product?.sellingPrice || 0) *
-                              item.quantity
-                            ).toFixed(2)}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.id)}
-                            className="p-1.5 hover:bg-[#FF4800] hover:text-white border-2 border-transparent hover:border-black transition-colors"
-                            title="Remove Item"
-                          >
-                            <Trash2 className="w-4 h-4 text-neutral-500 hover:text-white" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Courier Guarantee Callout */}
-              <div className="p-4 bg-white border-2 border-black shadow-[3px_3px_0px_#000] font-tech text-xs flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-[#059669] flex-shrink-0" />
-                <div>
-                  <span className="font-bold text-neutral-900 uppercase">
-                    ZERO-CRUSH PACKING PROTOCOL:{' '}
-                  </span>
-                  <span className="text-neutral-600 font-medium">
-                    Heavy goods separated from produce and breads. Insulated food-grade barrier
-                    sealed.
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Receipt Order Summary Column */}
-            <div className="lg:col-span-4">
-              <div className="card-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-5 sticky top-24">
-                <div className="border-b-2 border-black pb-3">
-                  <div className="font-tech text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                    MANIFEST SUMMARY
-                  </div>
-                  <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900 mt-1">
-                    Checkout Terminal
-                  </h3>
-                </div>
-
-                {/* Promo Coupon Box */}
-                <div>
-                  <label className="block font-tech text-xs uppercase tracking-wider font-bold mb-1.5 text-neutral-900">
-                    Promo / Protocol Voucher
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      className="input-brutal uppercase font-tech text-xs"
-                      placeholder="OMNIDROP10"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={applyCoupon}
-                      className="btn-brutal-white !h-auto !py-0 !px-4 text-xs font-bold uppercase"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                  {couponResult && (
-                    <div
-                      className={`mt-2 font-tech text-xs font-bold ${couponResult.valid ? 'text-[#059669]' : 'text-[#FF4800]'}`}
-                    >
-                      {couponResult.valid
-                        ? `✓ APPLIED: -₹${Number(couponResult.discount).toFixed(2)}`
-                        : `⚠ ${couponResult.message}`}
-                    </div>
-                  )}
-                </div>
-
-                {/* Receipt Line Items */}
-                <div className="space-y-2.5 font-tech text-xs border-y-2 border-black py-4">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Subtotal ({items.length} items)</span>
-                    <span className="font-bold text-neutral-900">
-                      ₹{Number(cart?.subtotal || 0).toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Hyperlocal Delivery</span>
-                    <span className="font-bold text-[#059669]">
-                      {cart?.deliveryFee === 0 || Number(cart?.subtotal || 0) >= 500
-                        ? 'FREE (₹0.00)'
-                        : `₹${Number(cart?.deliveryFee || 40).toFixed(2)}`}
-                    </span>
-                  </div>
-
-                  {couponResult?.valid && (
-                    <div className="flex justify-between text-[#059669] font-bold">
-                      <span>Voucher Discount</span>
-                      <span>-₹{discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between border-t-2 border-black/10 pt-2 font-black text-base text-neutral-900">
-                    <span className="uppercase">Due Total</span>
-                    <span className="text-xl">₹{finalTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <Link
-                  href={
-                    couponResult?.valid && couponCode
-                      ? `/checkout?promo=${encodeURIComponent(couponCode.trim())}`
-                      : '/checkout'
-                  }
-                  className="w-full btn-brutal-yellow !h-12 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+          <div className="grid lg:grid-cols-[1.65fr_1fr] gap-7 lg:gap-10 items-start">
+            <section className="surface-panel px-5 sm:px-7" aria-label="Items in your cart">
+              {items.map((item) => (
+                <article
+                  key={item.id}
+                  className="flex gap-4 sm:gap-5 py-6 border-b border-line last:border-b-0"
                 >
-                  <span>Proceed to Final Dispatch</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-
-                <div className="text-center font-tech text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                  STRIPE SSL SECURED · ZERO CARD SURCHARGES
+                  <Link
+                    href={'/products/' + item.productId}
+                    className="size-20 sm:size-24 shrink-0 overflow-hidden rounded-xl bg-muted"
+                  >
+                    <img
+                      src={item.product?.images?.[0] || '/hero_essentials.jpg'}
+                      alt={item.product?.name || 'Grocery item'}
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                    />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-secondary">
+                          {item.product?.unit || 'Everyday essentials'}
+                        </p>
+                        <Link
+                          href={'/products/' + item.productId}
+                          className="font-bold text-sm sm:text-base mt-1 block hover:text-brand"
+                        >
+                          {item.product?.name || 'Grocery item'}
+                        </Link>
+                      </div>
+                      <button
+                        type="button"
+                        className="icon-button size-9 text-secondary hover:text-danger"
+                        disabled={pending !== null}
+                        onClick={() => update(item.id, 0)}
+                        aria-label={'Remove ' + (item.product?.name || 'item') + ' from cart'}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                      <div className="quantity-control">
+                        <button
+                          type="button"
+                          disabled={pending !== null}
+                          onClick={() => update(item.id, item.quantity - 1)}
+                          aria-label={'Decrease quantity of ' + (item.product?.name || 'item')}
+                        >
+                          <Minus size={15} />
+                        </button>
+                        <output aria-label="Quantity">
+                          {pending === item.id ? (
+                            <Loader2 size={13} className="animate-spin mx-auto" />
+                          ) : (
+                            item.quantity
+                          )}
+                        </output>
+                        <button
+                          type="button"
+                          disabled={pending !== null}
+                          onClick={() => update(item.id, item.quantity + 1)}
+                          aria-label={'Increase quantity of ' + (item.product?.name || 'item')}
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+                      <span className="font-bold tabular-nums">
+                        ₹
+                        {(
+                          Number(item.effectivePrice ?? item.product?.sellingPrice ?? 0) *
+                          item.quantity
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </section>
+            <aside
+              className="surface-panel p-6 sm:p-7 lg:sticky lg:top-28"
+              aria-label="Order summary"
+            >
+              <h2 className="text-xl font-bold tracking-tight">The good things add up.</h2>
+              <div className="my-6 py-5 border-y border-line">
+                <label htmlFor="cart-promo" className="field-label flex gap-2 items-center">
+                  <Tag size={15} />
+                  Have a promo code?
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="cart-promo"
+                    className="field-input"
+                    placeholder="Enter code"
+                    value={coupon}
+                    onChange={(event) => {
+                      setCoupon(event.target.value);
+                      setPromotion(null);
+                      setAppliedCoupon('');
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="button-secondary px-4"
+                    disabled={validating || !coupon.trim()}
+                    onClick={applyCoupon}
+                  >
+                    {validating ? <Loader2 size={16} className="animate-spin" /> : 'Apply'}
+                  </button>
                 </div>
+                {promotion && (
+                  <p
+                    role="status"
+                    className={'text-xs mt-3 ' + (promotion.valid ? 'text-brand' : 'text-danger')}
+                  >
+                    {promotion.valid
+                      ? 'Promo applied. You saved ₹' +
+                        Number(promotion.discount || 0).toFixed(2) +
+                        '.'
+                      : promotion.message || 'This code is not valid for your order.'}
+                  </p>
+                )}
               </div>
-            </div>
+              <dl className="space-y-4 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-secondary">Subtotal</dt>
+                  <dd className="font-semibold tabular-nums">
+                    ₹{Number(cart?.subtotal || 0).toFixed(2)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-secondary">Delivery</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {Number(cart?.deliveryFee || 0) === 0
+                      ? 'Free'
+                      : '₹' + Number(cart?.deliveryFee).toFixed(2)}
+                  </dd>
+                </div>
+                {Number(cart?.tax) > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-secondary">Tax</dt>
+                    <dd className="font-semibold tabular-nums">₹{Number(cart?.tax).toFixed(2)}</dd>
+                  </div>
+                )}
+                {Number(cart?.discount) > 0 && (
+                  <div className="flex justify-between gap-4 text-brand">
+                    <dt>Discount</dt>
+                    <dd className="font-semibold tabular-nums">
+                      -₹{Number(cart?.discount).toFixed(2)}
+                    </dd>
+                  </div>
+                )}
+                {discount > 0 && (
+                  <div className="flex justify-between gap-4 text-brand">
+                    <dt>Promo savings</dt>
+                    <dd className="font-semibold tabular-nums">-₹{discount.toFixed(2)}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4 pt-5 border-t border-line text-lg font-bold">
+                  <dt>Total</dt>
+                  <dd className="tabular-nums">₹{total.toFixed(2)}</dd>
+                </div>
+              </dl>
+              <Link
+                href={
+                  appliedCoupon
+                    ? '/checkout?promo=' + encodeURIComponent(appliedCoupon)
+                    : '/checkout'
+                }
+                className="button-primary w-full mt-7"
+              >
+                Continue to checkout
+                <ArrowRight size={17} />
+              </Link>
+              <p className="text-xs text-secondary flex gap-2 items-center justify-center mt-5">
+                <ShieldCheck size={15} className="text-brand" />
+                Secure checkout. Clear order totals.
+              </p>
+            </aside>
           </div>
         )}
       </main>
-
       <BrutalFooter />
     </div>
   );

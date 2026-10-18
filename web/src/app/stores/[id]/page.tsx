@@ -90,11 +90,11 @@ export default function StoreDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-between">
+      <div className="min-h-dvh bg-canvas flex flex-col">
         <BrutalNav />
-        <div className="container-brutal py-24 text-center font-tech text-xs font-bold flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-black" />
-          <span className="uppercase tracking-wider">SYNCING MICRO-HUB INVENTORY TELEMETRY...</span>
+        <div className="site-container py-24 text-center font-sans text-xs font-bold flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-ink" />
+          <span className=" tracking-normal">Syncing micro-hub inventory telemetry...</span>
         </div>
         <BrutalFooter />
       </div>
@@ -103,19 +103,19 @@ export default function StoreDetailPage() {
 
   if (!store) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-between">
+      <div className="min-h-dvh bg-canvas flex flex-col">
         <BrutalNav />
-        <div className="container-brutal py-20 text-center space-y-4 max-w-md mx-auto">
-          <Store className="w-12 h-12 text-neutral-400 mx-auto" />
-          <h2 className="font-display font-black text-2xl uppercase tracking-tight">
+        <div className="site-container py-20 text-center space-y-4 max-w-md mx-auto">
+          <Store className="w-12 h-12 text-secondary mx-auto" />
+          <h2 className="font-display font-bold text-2xl  tracking-tight">
             Micro-Hub Node Not Found
           </h2>
-          <p className="font-sans text-xs text-neutral-600">
+          <p className="font-sans text-xs text-secondary">
             The requested store identifier does not exist or has been relocated in the network mesh.
           </p>
           <Link
             href="/stores"
-            className="btn-brutal-yellow inline-flex !h-10 !px-5 text-xs font-bold uppercase"
+            className="button-primary inline-flex !h-10 !px-5 text-xs font-bold "
           >
             Browse All Stores
           </Link>
@@ -126,25 +126,29 @@ export default function StoreDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
       {/* Floating success toast */}
       {successToast && (
-        <div className="fixed top-20 right-5 z-50 animate-bounce">
-          <div className="bg-[#00E599] text-black border-2 border-black p-3 font-tech text-xs font-bold shadow-[4px_4px_0px_#000] flex items-center gap-2">
+        <div className="fixed top-20 right-5 z-50 ">
+          <div className="bg-brand-soft text-ink border rounded-xl border-line p-3 font-sans text-xs font-bold  flex items-center gap-2">
             <Check className="w-4 h-4" />
             <span>{successToast}</span>
           </div>
         </div>
       )}
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Navigation Breadcrumb */}
         <div>
           <Link
             href="/stores"
-            className="inline-flex items-center gap-1 font-tech text-xs font-bold uppercase underline hover:bg-[#FFE600] px-1.5 py-0.5"
+            className="inline-flex items-center gap-1 font-sans text-xs font-bold  underline hover:bg-brand-soft px-1.5 py-0.5"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>Back to All Micro-Hubs</span>
@@ -152,43 +156,43 @@ export default function StoreDetailPage() {
         </div>
 
         {/* Store Profile Hero Banner */}
-        <div className="card-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-6">
+        <div className="surface-card bg-surface p-6 border rounded-xl border-line  space-y-6">
           <div className="flex flex-col lg:flex-row gap-6 items-start justify-between">
             <div className="space-y-3 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-black text-[#FFE600] font-tech text-[10px] font-bold uppercase px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
-                  {'HUB PROTOCOL // ACTIVE'}
+                <span className="bg-muted text-brand font-sans text-xs font-bold  px-2 py-0.5 border border-line ">
+                  {'Local store'}
                 </span>
-                <span className="bg-[#00E599] text-black font-tech text-[10px] font-bold uppercase px-2 py-0.5 border border-black">
-                  VERIFIED HYPERLOCAL
+                <span className="bg-brand-soft text-ink font-sans text-xs font-bold  px-2 py-0.5 border border-line">
+                  Verified hyperlocal
                 </span>
                 {store.isActive && (
-                  <span className="bg-[#FFE600] text-black font-tech text-[10px] font-bold uppercase px-2 py-0.5 border border-black">
-                    OPEN NOW
+                  <span className="bg-brand-soft text-ink font-sans text-xs font-bold  px-2 py-0.5 border border-line">
+                    Open now
                   </span>
                 )}
               </div>
 
-              <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
+              <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
                 {store.name}
               </h1>
 
-              <p className="font-sans text-sm text-neutral-600 font-medium max-w-2xl">
+              <p className="font-sans text-sm text-secondary font-medium max-w-2xl">
                 {store.description ||
                   'Dedicated neighborhood fulfillment node with real-time temperature tracking and instant dispatch verification.'}
               </p>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs font-tech font-bold text-neutral-700 pt-2">
+              <div className="flex flex-wrap items-center gap-4 text-xs font-sans font-bold text-secondary pt-2">
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-black" />
+                  <MapPin className="w-4 h-4 text-ink" />
                   <span>{store.address || 'Central District, Zone 4'}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#FF4800]" />
+                  <Clock className="w-4 h-4 text-danger" />
                   <span>{'15'} Min Average Doorstep Drop</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-[#FFE600] fill-[#FFE600]" />
+                  <Star className="w-4 h-4 text-brand fill-brand" />
                   <span>
                     {store.rating ? Number(store.rating).toFixed(1) : '4.9'} ({reviews.length}{' '}
                     Verified Reviews)
@@ -198,38 +202,38 @@ export default function StoreDetailPage() {
             </div>
 
             {/* Store Telemetry Box */}
-            <div className="w-full lg:w-72 bg-[#FAFAF8] border-2 border-black p-4 space-y-3 font-tech text-xs shadow-[3px_3px_0px_#000]">
-              <div className="border-b-2 border-black pb-2 font-bold uppercase text-neutral-500 text-[10px]">
-                TELEMETRY & DISPATCH SLA
+            <div className="w-full lg:w-72 bg-canvas border rounded-xl border-line p-4 space-y-3 font-sans text-xs ">
+              <div className="border-b border-line pb-2 font-bold  text-secondary text-xs">
+                Telemetry & dispatch sla
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">DELIVERY RADIUS:</span>
-                <span className="font-bold text-neutral-900">{store.radiusKm || 5} KM</span>
+                <span className="text-secondary">Delivery radius:</span>
+                <span className="font-bold text-ink">{store.radiusKm || 5} KM</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">PACKAGING TIME:</span>
-                <span className="font-bold text-[#059669]">2.4 MINS</span>
+                <span className="text-secondary">Packaging time:</span>
+                <span className="font-bold text-brand">2.4 mins</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">SHELF INTEGRITY:</span>
-                <span className="font-bold text-neutral-900">100% RFID SYNC</span>
+                <span className="text-secondary">Shelf integrity:</span>
+                <span className="font-bold text-ink">100% rfid sync</span>
               </div>
-              <div className="pt-2 border-t-2 border-black flex items-center justify-between">
-                <span className="text-neutral-600">SHELF ITEMS:</span>
-                <span className="font-black text-sm text-neutral-900">{inventory.length} SKUS</span>
+              <div className="pt-2 border-t border-line flex items-center justify-between">
+                <span className="text-secondary">Shelf items:</span>
+                <span className="font-bold text-sm text-ink">{inventory.length} Skus</span>
               </div>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex border-t-2 border-black pt-4 gap-3">
+          <div className="flex border-t border-line pt-4 gap-3">
             <button
               type="button"
               onClick={() => setActiveTab('catalog')}
-              className={`px-4 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+              className={`px-4 py-2 border rounded-xl border-line font-sans text-xs  font-bold transition-all ${
                 activeTab === 'catalog'
-                  ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                  : 'bg-white hover:bg-neutral-100 text-neutral-800'
+                  ? 'bg-brand-soft text-ink '
+                  : 'bg-surface hover:bg-muted text-ink'
               }`}
             >
               Shelved Catalog ({inventory.length})
@@ -237,10 +241,10 @@ export default function StoreDetailPage() {
             <button
               type="button"
               onClick={() => setActiveTab('reviews')}
-              className={`px-4 py-2 border-2 border-black font-tech text-xs uppercase font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 border rounded-xl border-line font-sans text-xs  font-bold transition-all flex items-center gap-1.5 ${
                 activeTab === 'reviews'
-                  ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]'
-                  : 'bg-white hover:bg-neutral-100 text-neutral-800'
+                  ? 'bg-brand-soft text-ink '
+                  : 'bg-surface hover:bg-muted text-ink'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -259,10 +263,10 @@ export default function StoreDetailPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory('')}
-                  className={`px-3 py-1.5 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+                  className={`px-3 py-1.5 border rounded-xl border-line font-sans text-xs  font-bold transition-all ${
                     !selectedCategory
-                      ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000]'
-                      : 'bg-white text-neutral-800 hover:bg-[#FAFAF8]'
+                      ? 'bg-brand-soft text-ink '
+                      : 'bg-surface text-ink hover:bg-canvas'
                   }`}
                 >
                   All Aisle SKUs
@@ -272,10 +276,10 @@ export default function StoreDetailPage() {
                     key={cat.id}
                     type="button"
                     onClick={() => setSelectedCategory(selectedCategory === cat.id ? '' : cat.id)}
-                    className={`px-3 py-1.5 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+                    className={`px-3 py-1.5 border rounded-xl border-line font-sans text-xs  font-bold transition-all ${
                       selectedCategory === cat.id
-                        ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000]'
-                        : 'bg-white text-neutral-800 hover:bg-[#FAFAF8]'
+                        ? 'bg-brand-soft text-ink '
+                        : 'bg-surface text-ink hover:bg-canvas'
                     }`}
                   >
                     {cat.name}
@@ -290,20 +294,20 @@ export default function StoreDetailPage() {
                   placeholder="Filter store items..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-brutal !h-9 text-xs pr-8"
+                  className="field-input !h-9 text-xs pr-8"
                 />
-                <Search className="w-3.5 h-3.5 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-secondary absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
 
             {/* Inventory Grid */}
             {filteredItems.length === 0 ? (
-              <div className="card-brutal p-12 text-center bg-white border-2 border-black">
-                <Package className="w-10 h-10 text-neutral-400 mx-auto mb-2" />
-                <h3 className="font-display font-black text-lg uppercase tracking-tight text-neutral-900">
+              <div className="surface-card p-12 text-center bg-surface border rounded-xl border-line">
+                <Package className="w-10 h-10 text-secondary mx-auto mb-2" />
+                <h3 className="font-display font-bold text-lg  tracking-tight text-ink">
                   No Items Match Filter
                 </h3>
-                <p className="font-sans text-xs text-neutral-600 mt-1">
+                <p className="font-sans text-xs text-secondary mt-1">
                   Try clearing the category filter or searching for another keyword.
                 </p>
                 <button
@@ -312,7 +316,7 @@ export default function StoreDetailPage() {
                     setSelectedCategory('');
                     setSearchQuery('');
                   }}
-                  className="btn-brutal-yellow !h-9 !px-4 text-xs font-bold uppercase mt-3"
+                  className="button-primary !h-9 !px-4 text-xs font-bold  mt-3"
                 >
                   Clear Filters
                 </button>
@@ -332,48 +336,46 @@ export default function StoreDetailPage() {
                   return (
                     <div
                       key={item.id || prod?.id}
-                      className="card-brutal bg-white p-4 flex flex-col justify-between space-y-3"
+                      className="surface-card bg-surface p-4 flex flex-col space-y-3"
                     >
                       <div>
                         {/* Unit & Shelf Badge */}
-                        <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-2.5 font-tech text-[10px] font-bold">
-                          <span className="bg-[#FFE600] px-1.5 py-0.5 border border-black uppercase text-black">
+                        <div className="flex items-center justify-between border-b border-line pb-2 mb-2.5 font-sans text-xs font-bold">
+                          <span className="bg-brand-soft px-1.5 py-0.5 border border-line  text-ink">
                             {prod?.category?.name || 'FRESH'}
                           </span>
-                          <span className="text-[#059669] uppercase">
-                            STOCK: {item.stock ?? 25} UNITS
-                          </span>
+                          <span className="text-brand ">Stock: {item.stock ?? 25} Units</span>
                         </div>
 
                         {/* Image */}
-                        <div className="relative aspect-[4/3] w-full border-2 border-black overflow-hidden mb-3 bg-neutral-100">
+                        <div className="relative aspect-[4/3] w-full border rounded-xl border-line overflow-hidden mb-3 bg-muted">
                           <img
                             src={image}
                             alt={prod?.name}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute top-2 left-2 bg-black text-white font-tech text-[9px] px-1.5 py-0.5 uppercase font-bold">
-                            SHELF VERIFIED
+                          <div className="absolute top-2 left-2 bg-muted text-ink font-sans text-xs px-1.5 py-0.5  font-bold">
+                            Shelf verified
                           </div>
                         </div>
 
-                        <h3 className="font-display font-black text-base uppercase text-neutral-900 leading-snug line-clamp-2">
+                        <h3 className="font-display font-bold text-base  text-ink leading-snug line-clamp-2">
                           {prod?.name}
                         </h3>
-                        <p className="font-sans text-xs text-neutral-600 font-medium line-clamp-2 mt-1">
+                        <p className="font-sans text-xs text-secondary font-medium line-clamp-2 mt-1">
                           {prod?.description ||
                             'Dual-scan verified grocery item direct from micro-hub shelves.'}
                         </p>
                       </div>
 
                       {/* Price & Add to Tote */}
-                      <div className="pt-3 border-t-2 border-black flex items-center justify-between gap-2">
+                      <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
                         <div>
-                          <div className="font-tech font-black text-xl text-neutral-900 tracking-tight leading-none">
+                          <div className="font-sans font-bold text-xl text-ink tracking-tight leading-none">
                             ₹{Number(price).toFixed(2)}
                           </div>
                           {mrp > price && (
-                            <span className="font-tech text-[10px] text-neutral-400 line-through">
+                            <span className="font-sans text-xs text-secondary line-through">
                               ₹{Number(mrp).toFixed(2)}
                             </span>
                           )}
@@ -383,17 +385,17 @@ export default function StoreDetailPage() {
                           type="button"
                           onClick={() => handleAddToCart(item)}
                           disabled={isAdding}
-                          className="btn-brutal-yellow !h-9 !py-0 !px-3 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5"
+                          className="button-primary !h-9 !py-0 !px-3 font-bold text-xs  tracking-normal flex items-center gap-1.5"
                         >
                           {isAdding ? (
                             <>
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>TOTE...</span>
+                              <span>Adding…</span>
                             </>
                           ) : (
                             <>
                               <Plus className="w-3.5 h-3.5" />
-                              <span>ADD TO TOTE</span>
+                              <span>Add to cart</span>
                             </>
                           )}
                         </button>
@@ -409,22 +411,22 @@ export default function StoreDetailPage() {
         {/* Tab 2: Reviews */}
         {activeTab === 'reviews' && (
           <div className="space-y-4">
-            <div className="border-b-2 border-black pb-3">
-              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-neutral-900">
+            <div className="border-b border-line pb-3">
+              <h2 className="font-display font-bold text-2xl  tracking-tight text-ink">
                 Verified Customer Feedback
               </h2>
-              <p className="font-sans text-xs text-neutral-600">
+              <p className="font-sans text-xs text-secondary">
                 Direct debrief ratings recorded upon doorstep fulfillment.
               </p>
             </div>
 
             {reviews.length === 0 ? (
-              <div className="card-brutal p-8 text-center bg-white border-2 border-black">
-                <Star className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                <h4 className="font-display font-black text-base uppercase text-neutral-900">
+              <div className="surface-card p-8 text-center bg-surface border rounded-xl border-line">
+                <Star className="w-8 h-8 text-secondary mx-auto mb-2" />
+                <h4 className="font-display font-bold text-base  text-ink">
                   No Reviews Recorded Yet
                 </h4>
-                <p className="font-sans text-xs text-neutral-600 mt-1">
+                <p className="font-sans text-xs text-secondary mt-1">
                   Be the first to rate items and delivery speed from this micro-hub!
                 </p>
               </div>
@@ -433,38 +435,38 @@ export default function StoreDetailPage() {
                 {reviews.map((rev, idx: number) => (
                   <div
                     key={rev.id || idx}
-                    className="card-brutal bg-white p-4 border-2 border-black space-y-2"
+                    className="surface-card bg-surface p-4 border rounded-xl border-line space-y-2"
                   >
-                    <div className="flex items-center justify-between border-b-2 border-black pb-2">
+                    <div className="flex items-center justify-between border-b border-line pb-2">
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
                             className={`w-3.5 h-3.5 ${
                               star <= (rev.storeRating || 5)
-                                ? 'text-[#FFE600] fill-[#FFE600]'
-                                : 'text-neutral-300'
+                                ? 'text-brand fill-brand'
+                                : 'text-secondary'
                             }`}
                           />
                         ))}
-                        <span className="font-tech font-bold text-xs ml-1">
+                        <span className="font-sans font-bold text-xs ml-1">
                           {rev.storeRating || 5}.0/5.0
                         </span>
                       </div>
-                      <span className="font-tech text-[10px] text-neutral-500 uppercase">
+                      <span className="font-sans text-xs text-secondary ">
                         {rev.createdAt
                           ? new Date(rev.createdAt).toLocaleDateString()
                           : 'VERIFIED DROP'}
                       </span>
                     </div>
-                    <p className="font-sans text-xs text-neutral-800 font-medium">
+                    <p className="font-sans text-xs text-ink font-medium">
                       &quot;
                       {rev.comment ||
                         'Order was packed flawlessly and delivered ahead of schedule.'}
                       &quot;
                     </p>
-                    <div className="font-tech text-[10px] font-bold text-neutral-500 uppercase">
-                      OPERATOR: {rev.user?.fullName || 'Verified Customer'}
+                    <div className="font-sans text-xs font-bold text-secondary ">
+                      Operator: {rev.user?.fullName || 'Verified Customer'}
                     </div>
                   </div>
                 ))}

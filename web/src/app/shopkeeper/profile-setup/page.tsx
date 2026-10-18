@@ -1,5 +1,12 @@
 'use client';
 
+import {
+  ClipboardList as UiClipboardList,
+  CreditCard as UiCreditCard,
+  Package as UiPackage,
+  Settings as UiSettings,
+} from 'lucide-react';
+
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
 import { api } from '@/lib/api';
@@ -77,57 +84,77 @@ export default function BusinessProfileSetupScreen() {
   const estimatedHouseholds = Math.round(18000 * Math.pow(radius / 5, 1.8));
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Header Breadcrumb & Subnav */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// MERCHANT ONBOARDING · STEP 01 OF 02'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   mb-2">
+              {'Merchant onboarding · step 01 of 02'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Micro-Hub Store Profile
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
+              Your store profile
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
               Configure physical store geo-fence, hyper-local corridor radius, and operational
               shifts.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-tech text-xs bg-white text-black font-bold uppercase px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_#000]">
+            <span className="font-sans text-xs bg-surface text-ink font-bold  px-3 py-1.5 border rounded-xl border-line ">
               Status: {existingStore ? 'Active Node' : 'Unregistered'}
             </span>
           </div>
         </div>
 
         {/* Portal Tabs Bar */}
-        <div className="flex flex-wrap gap-2 font-tech text-xs uppercase font-bold">
+        <div className="flex flex-wrap gap-2 font-sans text-xs  font-bold">
           <Link
             href="/shopkeeper/dashboard"
-            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+            className="px-4 py-2 border rounded-xl border-line bg-surface hover:bg-muted text-ink "
           >
-            📦 Shelf Inventory
+            <UiPackage
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            Inventory
           </Link>
           <Link
             href="/shopkeeper/orders"
-            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+            className="px-4 py-2 border rounded-xl border-line bg-surface hover:bg-muted text-ink "
           >
-            📋 Fulfill Orders
+            <UiClipboardList
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            Orders
           </Link>
           <Link
             href="/shopkeeper/profile-setup"
-            className="px-4 py-2 border-2 border-black bg-[#FFE600] text-black shadow-[3px_3px_0px_#000]"
+            className="px-4 py-2 border rounded-xl border-line bg-brand-soft text-ink "
           >
-            ⚙️ Hub Profile
+            <UiSettings
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            Store profile
           </Link>
           <Link
             href="/shopkeeper/financial-setup"
-            className="px-4 py-2 border-2 border-black bg-white hover:bg-neutral-100 text-neutral-800 shadow-[2px_2px_0px_#000]"
+            className="px-4 py-2 border rounded-xl border-line bg-surface hover:bg-muted text-ink "
           >
-            💳 Banking & Payouts
+            <UiCreditCard
+              className="inline-block size-4 align-text-bottom mr-1.5"
+              aria-hidden="true"
+            />{' '}
+            Banking & payouts
           </Link>
         </div>
 
@@ -138,34 +165,42 @@ export default function BusinessProfileSetupScreen() {
           {/* Left Column: Store Details & Timings */}
           <div className="lg:col-span-6 space-y-6">
             {/* 1. Store Identity */}
-            <div className="card-brutal p-6 space-y-4">
-              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
-                <Store className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 space-y-4">
+              <h2 className="font-display font-bold text-lg  text-ink flex items-center gap-2 pb-2 border-b border-line">
+                <Store className="w-5 h-5 text-ink" />
                 1. Store Identity & Street Location
               </h2>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-profile-setup-page-1"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Commercial Store Name *
                 </label>
                 <input
+                  id="field-shopkeeper-profile-setup-page-1"
                   type="text"
                   required
                   placeholder="e.g. Organic Greens Micro-Hub"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
-                  className="input-brutal text-sm"
+                  className="field-input text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-profile-setup-page-2"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Business Domain / Category
                 </label>
                 <select
+                  id="field-shopkeeper-profile-setup-page-2"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="input-brutal text-sm bg-white cursor-pointer"
+                  className="field-input text-sm bg-surface cursor-pointer"
                 >
                   <option>Grocery & Fresh Produce</option>
                   <option>Artisan Bakery & Cafe</option>
@@ -176,96 +211,107 @@ export default function BusinessProfileSetupScreen() {
               </div>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-profile-setup-page-3"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Physical Store Address (For Courier Pickup) *
                 </label>
                 <input
+                  id="field-shopkeeper-profile-setup-page-3"
                   type="text"
                   required
                   placeholder="e.g. 542, 12th Main Road, Indiranagar, Bengaluru"
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
-                  className="input-brutal text-sm"
+                  className="field-input text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-profile-setup-page-4"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Hub Bio / Customer Description
                 </label>
                 <textarea
+                  id="field-shopkeeper-profile-setup-page-4"
                   rows={3}
                   placeholder="Neighborhood organic micro-fulfillment depot stocked with certified farm harvest..."
                   value={storeDescription}
                   onChange={(e) => setStoreDescription(e.target.value)}
-                  className="input-brutal text-sm resize-none"
+                  className="field-input text-sm resize-none"
                 />
               </div>
             </div>
 
             {/* 2. Operational Hours */}
-            <div className="card-brutal p-6 space-y-4">
-              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
-                <Clock className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 space-y-4">
+              <h2 className="font-display font-bold text-lg  text-ink flex items-center gap-2 pb-2 border-b border-line">
+                <Clock className="w-5 h-5 text-ink" />
                 2. Operational Shifts & Dispatch Readiness
               </h2>
 
-              <div className="space-y-3 font-tech text-xs">
-                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+              <div className="space-y-3 font-sans text-xs">
+                <div className="flex items-center justify-between p-3 border rounded-xl border-line bg-muted">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      aria-label="Open Monday to Friday"
                       defaultChecked
-                      className="w-4 h-4 accent-black cursor-pointer"
+                      className="w-4 h-4 accent-brand cursor-pointer"
                     />
-                    <span className="font-bold text-neutral-900">Mon - Fri Weekdays</span>
+                    <span className="font-bold text-ink">Mon - Fri Weekdays</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       07:00 AM
                     </span>
                     <span>to</span>
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       11:00 PM
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+                <div className="flex items-center justify-between p-3 border rounded-xl border-line bg-muted">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      aria-label="Open on Saturday"
                       defaultChecked
-                      className="w-4 h-4 accent-black cursor-pointer"
+                      className="w-4 h-4 accent-brand cursor-pointer"
                     />
-                    <span className="font-bold text-neutral-900">Saturday Peak</span>
+                    <span className="font-bold text-ink">Saturday Peak</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       08:00 AM
                     </span>
                     <span>to</span>
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       11:30 PM
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 border-2 border-black bg-neutral-50">
+                <div className="flex items-center justify-between p-3 border rounded-xl border-line bg-muted">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      aria-label="Open on Sunday"
                       defaultChecked
-                      className="w-4 h-4 accent-black cursor-pointer"
+                      className="w-4 h-4 accent-brand cursor-pointer"
                     />
-                    <span className="font-bold text-neutral-900">Sunday Brunch & Evening</span>
+                    <span className="font-bold text-ink">Sunday Brunch & Evening</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       08:00 AM
                     </span>
                     <span>to</span>
-                    <span className="px-2 py-1 bg-white border border-black font-bold">
+                    <span className="px-2 py-1 bg-surface border border-line font-bold">
                       10:00 PM
                     </span>
                   </div>
@@ -276,64 +322,65 @@ export default function BusinessProfileSetupScreen() {
 
           {/* Right Column: Geo-Corridor Radar & Submission */}
           <div className="lg:col-span-6 space-y-6 lg:sticky lg:top-24">
-            <div className="card-brutal p-6 bg-white space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b-2 border-black">
-                <h3 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2">
-                  <Navigation className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 bg-surface space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-line">
+                <h3 className="font-display font-bold text-lg  text-ink flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-ink" />
                   Hyperlocal Service Radius
                 </h3>
-                <span className="px-2.5 py-0.5 bg-[#FFE600] text-black font-tech text-xs font-bold border border-black shadow-[1px_1px_0px_#000]">
-                  {radius.toFixed(1)} KM CORRIDOR
+                <span className="px-2.5 py-0.5 bg-brand-soft text-ink font-sans text-xs font-bold border border-line ">
+                  {radius.toFixed(1)} Km corridor
                 </span>
               </div>
 
               {/* Graphic Radar Simulation */}
-              <div className="relative h-64 bg-neutral-900 border-2 border-black overflow-hidden flex items-center justify-center p-4">
+              <div className="relative h-64 bg-muted border rounded-xl border-line overflow-hidden flex items-center justify-center p-4">
                 {/* Radial Grid Rings */}
-                <div className="absolute inset-0 bg-brutal-grid opacity-20"></div>
-                <div className="absolute w-48 h-48 rounded-full border border-neutral-700"></div>
-                <div className="absolute w-32 h-32 rounded-full border border-neutral-600"></div>
-                <div className="absolute w-16 h-16 rounded-full border border-neutral-500"></div>
+                <div className="absolute inset-0 bg-canvas opacity-20"></div>
+                <div className="absolute w-48 h-48 rounded-full border border-line"></div>
+                <div className="absolute w-32 h-32 rounded-full border border-line"></div>
+                <div className="absolute w-16 h-16 rounded-full border border-line"></div>
 
                 {/* Crosshairs */}
-                <div className="absolute w-full h-[1px] bg-neutral-700"></div>
-                <div className="absolute h-full w-[1px] bg-neutral-700"></div>
+                <div className="absolute w-full h-[1px] bg-muted"></div>
+                <div className="absolute h-full w-[1px] bg-muted"></div>
 
                 {/* Geo-Circle Visualization */}
                 <div
-                  className="rounded-full border-2 border-[#00E599] bg-[#00E599]/20 transition-all duration-300 flex items-center justify-center relative"
+                  className="rounded-full border rounded-xl border-line bg-brand-soft transition-all duration-300 flex items-center justify-center relative"
                   style={{
                     width: `${Math.min(220, 60 + radius * 12)}px`,
                     height: `${Math.min(220, 60 + radius * 12)}px`,
                   }}
                 >
-                  <div className="w-4 h-4 bg-[#FFE600] border-2 border-black rounded-full animate-ping"></div>
-                  <div className="w-3 h-3 bg-[#FFE600] border-2 border-black rounded-full absolute"></div>
+                  <div className="w-4 h-4 bg-brand-soft border rounded-xl border-line rounded-full animate-ping"></div>
+                  <div className="w-3 h-3 bg-brand-soft border rounded-xl border-line rounded-full absolute"></div>
                 </div>
 
                 {/* Radar Floating Stat */}
-                <div className="absolute bottom-3 left-3 bg-black/90 border border-white text-white p-2 font-tech text-[10px]">
-                  <p className="text-[#00E599] font-bold">LAT: 12.9716° N</p>
-                  <p className="text-neutral-400">LNG: 77.5946° E</p>
+                <div className="absolute bottom-3 left-3 bg-muted border border-line text-ink p-2 font-sans text-xs">
+                  <p className="text-brand font-bold">Lat: 12.9716° n</p>
+                  <p className="text-secondary">Lng: 77.5946° e</p>
                 </div>
               </div>
 
               {/* Radius Control Slider */}
               <div className="space-y-2">
-                <div className="flex justify-between font-tech text-xs font-bold uppercase">
+                <div className="flex justify-between font-sans text-xs font-bold ">
                   <span>Dispatch Perimeter</span>
-                  <span className="text-black font-black text-sm">{radius.toFixed(1)} km</span>
+                  <span className="text-ink font-bold text-sm">{radius.toFixed(1)} km</span>
                 </div>
                 <input
                   type="range"
+                  aria-label="Delivery radius in kilometers"
                   min="1"
                   max="15"
                   step="0.5"
                   value={radius}
                   onChange={(e) => setRadius(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-neutral-200 border-2 border-black appearance-none cursor-pointer accent-black"
+                  className="w-full h-2 bg-muted border rounded-xl border-line appearance-none cursor-pointer accent-brand"
                 />
-                <div className="flex justify-between font-tech text-[10px] text-neutral-500">
+                <div className="flex justify-between font-sans text-xs text-secondary">
                   <span>1.0 km (Hyper-dense)</span>
                   <span>7.5 km (Standard)</span>
                   <span>15.0 km (Max corridor)</span>
@@ -342,41 +389,37 @@ export default function BusinessProfileSetupScreen() {
 
               {/* Reach Forecast Matrix */}
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 border-2 border-black bg-neutral-50">
-                  <p className="font-tech text-[10px] text-neutral-500 uppercase font-bold">
-                    Est. Households
-                  </p>
-                  <p className="font-display font-black text-xl text-neutral-900 mt-0.5">
+                <div className="p-3 border rounded-xl border-line bg-muted">
+                  <p className="font-sans text-xs text-secondary  font-bold">Est. Households</p>
+                  <p className="font-display font-bold text-xl text-ink mt-0.5">
                     ~{(estimatedHouseholds / 1000).toFixed(1)}k
                   </p>
-                  <span className="text-[10px] font-tech text-neutral-600">Active app reach</span>
+                  <span className="text-xs font-sans text-secondary">Active app reach</span>
                 </div>
 
-                <div className="p-3 border-2 border-black bg-neutral-50">
-                  <p className="font-tech text-[10px] text-neutral-500 uppercase font-bold">
-                    Avg. Courier Sla
-                  </p>
-                  <p className="font-display font-black text-xl text-neutral-900 mt-0.5">
+                <div className="p-3 border rounded-xl border-line bg-muted">
+                  <p className="font-sans text-xs text-secondary  font-bold">Avg. Courier Sla</p>
+                  <p className="font-display font-bold text-xl text-ink mt-0.5">
                     {Math.round(8 + radius * 0.8)}-{Math.round(12 + radius * 1.2)} min
                   </p>
-                  <span className="text-[10px] font-tech text-[#00E599] font-bold bg-black px-1">
+                  <span className="text-xs font-sans text-brand font-bold bg-muted px-1">
                     Guaranteed
                   </span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t-2 border-black space-y-3">
+              <div className="pt-4 border-t border-line space-y-3">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-brutal-yellow w-full !h-12 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]"
+                  className="button-primary w-full !h-12 text-sm font-bold  tracking-normal flex items-center justify-center gap-2 "
                 >
                   <span>{loading ? 'Saving Profile...' : 'Save & Proceed to Banking'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
-                <p className="font-tech text-[11px] text-neutral-500 text-center uppercase">
+                <p className="font-sans text-xs text-secondary text-center ">
                   Step 1 of 2: KYC banking setup required next for instant settlements.
                 </p>
               </div>

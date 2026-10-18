@@ -1,5 +1,7 @@
 'use client';
 
+import { Zap as UiZap } from 'lucide-react';
+
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
 import { LiveMap } from '@/components/shared/live-map';
@@ -62,10 +64,10 @@ export default function OrderDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-between">
+      <div className="min-h-dvh bg-canvas flex flex-col">
         <BrutalNav />
-        <div className="container-brutal py-20 text-center font-tech text-xs font-bold uppercase">
-          READING SATELLITE TELEMETRY...
+        <div className="site-container py-20 text-center font-sans text-xs font-bold ">
+          Reading satellite telemetry...
         </div>
         <BrutalFooter />
       </div>
@@ -74,13 +76,13 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-between">
+      <div className="min-h-dvh bg-canvas flex flex-col">
         <BrutalNav />
-        <div className="container-brutal py-20 text-center space-y-4">
-          <h2 className="font-display font-black text-2xl uppercase">Order Node Not Found</h2>
+        <div className="site-container py-20 text-center space-y-4">
+          <h2 className="font-display font-bold text-2xl ">Order Node Not Found</h2>
           <Link
             href="/orders"
-            className="btn-brutal-yellow inline-flex !h-10 !px-5 text-xs font-bold uppercase"
+            className="button-primary inline-flex !h-10 !px-5 text-xs font-bold "
           >
             Return to Orders
           </Link>
@@ -97,65 +99,69 @@ export default function OrderDetailPage() {
   const activeStep = currentStepIndex >= 0 ? currentStepIndex : isDelivered ? 4 : 1;
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Top Breadcrumb & Status Tag */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line">
           <div>
             <Link
               href="/orders"
-              className="inline-flex items-center gap-1 font-tech text-xs font-bold uppercase underline hover:bg-[#FFE600] px-1 py-0.5 mb-2"
+              className="inline-flex items-center gap-1 font-sans text-xs font-bold  underline hover:bg-brand-soft px-1 py-0.5 mb-2"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>Back to Orders</span>
             </Link>
-            <h1 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tight text-neutral-900">
-              Live Dispatch Manifest #{order.id?.slice(-8)}
+            <h1 className="font-display font-bold text-2xl sm:text-3xl  tracking-tight text-ink">
+              Order details #{order.id?.slice(-8)}
             </h1>
-            <p className="font-tech text-xs text-neutral-600 mt-1">
-              CONNECTED NODE: {order.store?.name || 'Local Dark Store'} ·{' '}
+            <p className="font-sans text-xs text-secondary mt-1">
+              Connected node: {order.store?.name || 'Local Dark Store'} ·{' '}
               {order.store?.address || 'Sector 4 Delhi'}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="badge-brutal-yellow text-xs font-black">
+            <span className="badge-accent text-xs font-bold">
               {order.status?.replace(/_/g, ' ')}
             </span>
             {isDeliveryActive && (
-              <span className="w-3 h-3 rounded-full bg-[#00E599] animate-pulse border border-black"></span>
+              <span className="w-3 h-3 rounded-full bg-brand-soft  border border-line"></span>
             )}
           </div>
         </div>
 
         {/* 1. Step Progress Nodes Visualizer */}
-        <div className="card-brutal bg-white p-6 border-2 border-black shadow-[4px_4px_0px_#000]">
-          <div className="font-tech text-xs font-bold uppercase mb-4 text-neutral-500">
-            DISPATCH PIPELINE EXECUTION
+        <div className="surface-card bg-surface p-6 border rounded-xl border-line ">
+          <div className="font-sans text-xs font-bold  mb-4 text-secondary">
+            Dispatch pipeline execution
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-tech text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-sans text-xs">
             {ORDER_STEPS.map((step, idx) => {
               const isPassed = idx <= activeStep;
               const isCurrent = idx === activeStep;
               return (
                 <div
                   key={step.key}
-                  className={`p-3 border-2 border-black transition-all ${
+                  className={`p-3 border rounded-xl border-line transition-all ${
                     isCurrent
-                      ? 'bg-[#FFE600] text-black shadow-[3px_3px_0px_#000] font-black'
+                      ? 'bg-brand-soft text-ink  font-bold'
                       : isPassed
-                        ? 'bg-neutral-900 text-white font-bold'
-                        : 'bg-[#FAFAF8] text-neutral-400'
+                        ? 'bg-muted text-ink font-bold'
+                        : 'bg-canvas text-secondary'
                   }`}
                 >
-                  <div className="flex justify-between text-[10px] mb-1">
-                    <span>STAGE 0{idx + 1}</span>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Stage 0{idx + 1}</span>
                     <span>{step.time}</span>
                   </div>
-                  <div className="uppercase tracking-tight truncate">{step.label}</div>
+                  <div className=" tracking-tight truncate">{step.label}</div>
                 </div>
               );
             })}
@@ -166,16 +172,16 @@ export default function OrderDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Live Map Telemetry */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="card-brutal bg-white p-4 border-2 border-black shadow-[4px_4px_0px_#000]">
-              <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-3 font-tech text-xs font-bold">
+            <div className="surface-card bg-surface p-4 border rounded-xl border-line ">
+              <div className="flex items-center justify-between border-b border-line pb-2 mb-3 font-sans text-xs font-bold">
                 <span className="flex items-center gap-1.5">
-                  <Bike className="w-4 h-4 text-[#FF4800]" />
-                  <span>COURIER VECTOR SATELLITE RADAR</span>
+                  <Bike className="w-4 h-4 text-danger" />
+                  <span>Courier vector satellite radar</span>
                 </span>
-                <span className="text-[#059669]">● REALTIME WEBSOCKET</span>
+                <span className="text-brand">● realtime websocket</span>
               </div>
 
-              <div className="h-[380px] w-full border-2 border-black overflow-hidden relative bg-neutral-100">
+              <div className="h-[380px] w-full border rounded-xl border-line overflow-hidden relative bg-muted">
                 {isDeliveryActive ? (
                   <LiveMap
                     orderId={order.id}
@@ -183,14 +189,14 @@ export default function OrderDetailPage() {
                     initialLng={Number(order.store?.lng || 77.209)}
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-[#FAFAF8] font-tech text-xs space-y-2">
-                    <MapPin className="w-8 h-8 text-neutral-400" />
-                    <div className="font-bold uppercase text-neutral-900">
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-canvas font-sans text-xs space-y-2">
+                    <MapPin className="w-8 h-8 text-secondary" />
+                    <div className="font-bold  text-ink">
                       {isDelivered
                         ? 'Drop Completed At Doorstep'
                         : 'Courier Vector Awaiting Physical Shelf Pack'}
                     </div>
-                    <p className="text-neutral-500 max-w-xs">
+                    <p className="text-secondary max-w-xs">
                       {isDelivered
                         ? 'Package safely received and verified with customer PIN.'
                         : 'Real-time GPS coordinates will stream live once courier accepts tote dispatch.'}
@@ -199,20 +205,16 @@ export default function OrderDetailPage() {
                 )}
               </div>
 
-              <div className="mt-3 p-3 bg-[#FAFAF8] border-2 border-black font-tech text-xs grid grid-cols-2 gap-2">
+              <div className="mt-3 p-3 bg-canvas border rounded-xl border-line font-sans text-xs grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                    Destination
-                  </span>
-                  <span className="font-bold text-neutral-900 truncate block">
+                  <span className="text-secondary block text-xs  font-bold">Destination</span>
+                  <span className="font-bold text-ink truncate block">
                     {order.deliveryAddress || 'Sector 4, Central Delhi'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-neutral-500 block text-[9px] uppercase font-bold">
-                    Special Note
-                  </span>
-                  <span className="font-bold text-neutral-900 truncate block">
+                  <span className="text-secondary block text-xs  font-bold">Special Note</span>
+                  <span className="font-bold text-ink truncate block">
                     {order.deliveryInstructions || 'Standard Doorstep Drop'}
                   </span>
                 </div>
@@ -222,15 +224,18 @@ export default function OrderDetailPage() {
 
           {/* Right Column: Order Itemization Receipt */}
           <div className="lg:col-span-5">
-            <div className="receipt-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-4">
-              <div className="border-b-2 border-black pb-3 text-center">
-                <div className="w-8 h-8 bg-black text-[#FFE600] flex items-center justify-center font-display font-black text-sm border-2 border-black shadow-[2px_2px_0px_#000] mx-auto mb-1.5">
-                  ⚡
+            <div className="surface-panel bg-surface p-6 border rounded-xl border-line  space-y-4">
+              <div className="border-b border-line pb-3 text-center">
+                <div className="w-8 h-8 bg-muted text-brand flex items-center justify-center font-display font-bold text-sm border rounded-xl border-line  mx-auto mb-1.5">
+                  <UiZap
+                    className="inline-block size-4 align-text-bottom mr-1.5"
+                    aria-hidden="true"
+                  />
                 </div>
-                <div className="font-tech text-xs font-bold uppercase tracking-wider text-neutral-900">
-                  VERIFIED TOTE RECEIPT
+                <div className="font-sans text-xs font-bold  tracking-normal text-ink">
+                  Verified tote receipt
                 </div>
-                <div className="font-tech text-[10px] text-neutral-500 font-bold uppercase">
+                <div className="font-sans text-xs text-secondary font-bold ">
                   {new Date(order.createdAt).toLocaleDateString('en-IN', {
                     day: 'numeric',
                     month: 'short',
@@ -241,13 +246,13 @@ export default function OrderDetailPage() {
               </div>
 
               {/* Items List */}
-              <div className="space-y-2.5 font-tech text-xs border-b-2 border-black pb-4">
+              <div className="space-y-2.5 font-sans text-xs border-b border-line pb-4">
                 {order.items?.map((item) => (
                   <div key={item.id} className="flex justify-between items-baseline">
-                    <span className="text-neutral-700">
+                    <span className="text-secondary">
                       {item.quantity}x {item.name || item.product?.name || 'Item'}
                     </span>
-                    <span className="font-bold text-neutral-900">
+                    <span className="font-bold text-ink">
                       ₹{(Number(item.unitPrice || 0) * item.quantity).toFixed(2)}
                     </span>
                   </div>
@@ -255,47 +260,45 @@ export default function OrderDetailPage() {
               </div>
 
               {/* Breakdown */}
-              <div className="space-y-2 font-tech text-xs border-b-2 border-black pb-4">
-                <div className="flex justify-between text-neutral-600">
+              <div className="space-y-2 font-sans text-xs border-b border-line pb-4">
+                <div className="flex justify-between text-secondary">
                   <span>Subtotal</span>
-                  <span className="font-bold text-neutral-900">
+                  <span className="font-bold text-ink">
                     ₹{Number(order.subtotal || order.total || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between text-neutral-600">
+                <div className="flex justify-between text-secondary">
                   <span>Transit Fee</span>
-                  <span className="font-bold text-[#059669]">
+                  <span className="font-bold text-brand">
                     {Number(order.deliveryFee) === 0
                       ? 'FREE (₹0.00)'
                       : `₹${Number(order.deliveryFee || 40).toFixed(2)}`}
                   </span>
                 </div>
-                <div className="flex justify-between text-neutral-600">
+                <div className="flex justify-between text-secondary">
                   <span>Payment Channel</span>
-                  <span className="font-bold uppercase text-neutral-900">
-                    {order.paymentMethod || 'ONLINE'}
-                  </span>
+                  <span className="font-bold  text-ink">{order.paymentMethod || 'ONLINE'}</span>
                 </div>
               </div>
 
               {/* Total Due */}
-              <div className="flex justify-between items-baseline font-tech font-black text-lg text-neutral-900 pt-1">
-                <span className="uppercase">TOTAL CHARGED</span>
+              <div className="flex justify-between items-baseline font-sans font-bold text-lg text-ink pt-1">
+                <span className="">Total charged</span>
                 <span className="text-2xl">₹{Number(order.total || 0).toFixed(2)}</span>
               </div>
 
               {isDelivered && (
                 <Link
                   href={`/orders/${order.id}/review`}
-                  className="w-full btn-brutal-yellow !h-11 !py-0 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[3px_3px_0px_#000]"
+                  className="w-full button-primary !h-11 !py-0 font-bold text-xs  tracking-normal flex items-center justify-center gap-2 "
                 >
                   <Star className="w-4 h-4 fill-black" />
                   <span>Rate Store & Courier Delivery</span>
                 </Link>
               )}
 
-              <div className="p-3 bg-[#00E599]/20 border-2 border-black font-tech text-[11px] text-neutral-900 font-bold flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-black flex-shrink-0" />
+              <div className="p-3 bg-brand-soft border rounded-xl border-line font-sans text-xs text-ink font-bold flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-ink flex-shrink-0" />
                 <span>SHELF GUARANTEE: Zero markups on any item.</span>
               </div>
             </div>

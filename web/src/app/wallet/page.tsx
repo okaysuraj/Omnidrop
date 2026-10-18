@@ -91,22 +91,25 @@ export default function WalletPage() {
   const transactions = wallet?.transactions || [];
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// ZERO-LATENCY SETTLEMENT'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   mb-2">
+              {'Your wallet'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Omni Wallet Vault
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
+              Omni Wallet
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
-              Store digital cash balances for instantaneous, 1-click checkout dispatches without
-              payment gateway latency.
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
+              Keep funds ready for your next order. View your balance and transaction history here.
             </p>
           </div>
 
@@ -115,7 +118,7 @@ export default function WalletPage() {
               type="button"
               onClick={fetchWallet}
               disabled={refreshing}
-              className="btn-brutal-white !h-9 !py-0 !px-3 font-tech text-xs uppercase font-bold flex items-center gap-1.5"
+              className="button-secondary !h-9 !py-0 !px-3 font-sans text-xs  font-bold flex items-center gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh Vault</span>
@@ -126,7 +129,7 @@ export default function WalletPage() {
                 setFeedback(null);
                 setModalOpen(true);
               }}
-              className="btn-brutal-yellow !h-9 !py-0 !px-4 text-xs font-bold uppercase flex items-center gap-1.5"
+              className="button-primary !h-9 !py-0 !px-4 text-xs font-bold  flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Balance</span>
@@ -137,8 +140,8 @@ export default function WalletPage() {
         {/* Global Feedback Banner */}
         {feedback && (
           <div
-            className={`p-4 border-2 border-black shadow-[4px_4px_0px_#000] font-tech text-xs font-bold flex items-center gap-3 ${
-              feedback.type === 'success' ? 'bg-[#00E599] text-black' : 'bg-[#FF4800] text-white'
+            className={`p-4 border rounded-xl border-line  font-sans text-xs font-bold flex items-center gap-3 ${
+              feedback.type === 'success' ? 'bg-brand-soft text-ink' : 'bg-danger-soft text-ink'
             }`}
           >
             {feedback.type === 'success' ? (
@@ -151,44 +154,42 @@ export default function WalletPage() {
         )}
 
         {loading ? (
-          <div className="py-24 text-center font-tech text-xs font-bold flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-black" />
-            <span className="uppercase tracking-wider">CONNECTING TO VAULT LEDGER...</span>
+          <div className="py-24 text-center font-sans text-xs font-bold flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-ink" />
+            <span className=" tracking-normal">Connecting to vault ledger...</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Balance Display Card */}
             <div className="lg:col-span-5 space-y-6">
-              <div className="card-brutal bg-[#FFE600] p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-4">
-                <div className="flex items-center justify-between border-b-2 border-black pb-3">
+              <div className="surface-card bg-brand-soft p-6 border rounded-xl border-line  space-y-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
                   <div className="flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-black" />
-                    <span className="font-tech text-xs font-black uppercase tracking-wider text-black">
-                      ACTIVE DIGITAL BALANCE
+                    <Wallet className="w-5 h-5 text-ink" />
+                    <span className="font-sans text-xs font-bold  tracking-normal text-ink">
+                      Active digital balance
                     </span>
                   </div>
-                  <span className="bg-black text-white font-tech text-[10px] font-bold uppercase px-2 py-0.5">
-                    VERIFIED
+                  <span className="bg-muted text-ink font-sans text-xs font-bold  px-2 py-0.5">
+                    Verified
                   </span>
                 </div>
 
                 <div>
-                  <div className="font-tech text-xs text-black/70 font-bold uppercase">
-                    Available Spend Power
-                  </div>
-                  <div className="font-tech font-black text-4xl sm:text-5xl text-black tracking-tight mt-1">
+                  <div className="font-sans text-xs text-ink font-bold ">Available Spend Power</div>
+                  <div className="font-sans font-bold text-4xl sm:text-5xl text-ink tracking-tight mt-1">
                     ₹{balance.toFixed(2)}
                   </div>
                 </div>
 
-                <div className="pt-2 border-t-2 border-black flex flex-wrap gap-2">
+                <div className="pt-2 border-t border-line flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setTopupAmount('200');
                       setModalOpen(true);
                     }}
-                    className="btn-brutal-white !h-8 !py-0 !px-2.5 text-xs font-bold uppercase"
+                    className="button-secondary !h-8 !py-0 !px-2.5 text-xs font-bold "
                   >
                     +₹200
                   </button>
@@ -198,7 +199,7 @@ export default function WalletPage() {
                       setTopupAmount('500');
                       setModalOpen(true);
                     }}
-                    className="btn-brutal-white !h-8 !py-0 !px-2.5 text-xs font-bold uppercase"
+                    className="button-secondary !h-8 !py-0 !px-2.5 text-xs font-bold "
                   >
                     +₹500
                   </button>
@@ -208,7 +209,7 @@ export default function WalletPage() {
                       setTopupAmount('1000');
                       setModalOpen(true);
                     }}
-                    className="btn-brutal-white !h-8 !py-0 !px-2.5 text-xs font-bold uppercase"
+                    className="button-secondary !h-8 !py-0 !px-2.5 text-xs font-bold "
                   >
                     +₹1,000
                   </button>
@@ -218,7 +219,7 @@ export default function WalletPage() {
                       setTopupAmount('2000');
                       setModalOpen(true);
                     }}
-                    className="btn-brutal-white !h-8 !py-0 !px-2.5 text-xs font-bold uppercase"
+                    className="button-secondary !h-8 !py-0 !px-2.5 text-xs font-bold "
                   >
                     +₹2,000
                   </button>
@@ -226,33 +227,33 @@ export default function WalletPage() {
               </div>
 
               {/* Protocol Features List */}
-              <div className="card-brutal bg-white p-5 border-2 border-black shadow-[4px_4px_0px_#000] space-y-3 font-tech text-xs">
-                <div className="font-bold uppercase tracking-wider text-neutral-500 border-b-2 border-black pb-2">
-                  VAULT PROTOCOL ADVANTAGES
+              <div className="surface-card bg-surface p-5 border rounded-xl border-line  space-y-3 font-sans text-xs">
+                <div className="font-bold  tracking-normal text-secondary border-b border-line pb-2">
+                  Vault protocol advantages
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-[#059669] flex-shrink-0 mt-0.5" />
+                  <ShieldCheck className="w-4 h-4 text-brand flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="block text-neutral-900">0.0ms Checkout Gate:</strong>
-                    <span className="text-neutral-600">
+                    <strong className="block text-ink">0.0ms Checkout Gate:</strong>
+                    <span className="text-secondary">
                       Immediate fulfillment without OTP waits or bank failures.
                     </span>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-[#FF4800] flex-shrink-0 mt-0.5" />
+                  <Sparkles className="w-4 h-4 text-danger flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="block text-neutral-900">100% Refund Guarantee:</strong>
-                    <span className="text-neutral-600">
+                    <strong className="block text-ink">100% Refund Guarantee:</strong>
+                    <span className="text-secondary">
                       Immediate refund restoration if out-of-stock items occur.
                     </span>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <CreditCard className="w-4 h-4 text-black flex-shrink-0 mt-0.5" />
+                  <CreditCard className="w-4 h-4 text-ink flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="block text-neutral-900">Zero Transaction Fees:</strong>
-                    <span className="text-neutral-600">
+                    <strong className="block text-ink">Zero Transaction Fees:</strong>
+                    <span className="text-secondary">
                       No processing overhead or merchant commissions.
                     </span>
                   </div>
@@ -262,44 +263,42 @@ export default function WalletPage() {
 
             {/* Right Column: Transaction Ledger */}
             <div className="lg:col-span-7 space-y-4">
-              <div className="card-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-4">
-                <div className="flex items-center justify-between border-b-2 border-black pb-3">
+              <div className="surface-card bg-surface p-6 border rounded-xl border-line  space-y-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
                   <div>
-                    <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+                    <h3 className="font-display font-bold text-xl  tracking-tight text-ink">
                       Vault Ledger Audit Trail
                     </h3>
-                    <p className="font-tech text-xs text-neutral-500">
-                      CRYPTOGRAPHIC RECORD OF ALL TRANSIT ACTIONS
+                    <p className="font-sans text-xs text-secondary">
+                      Cryptographic record of all transit actions
                     </p>
                   </div>
-                  <span className="badge-brutal bg-neutral-100 text-neutral-800 text-[10px] font-bold">
-                    {transactions.length} ENTRIES
+                  <span className="status-badge bg-muted text-ink text-xs font-bold">
+                    {transactions.length} Entries
                   </span>
                 </div>
 
                 {transactions.length === 0 ? (
                   <div className="py-12 text-center space-y-2">
-                    <Wallet className="w-10 h-10 text-neutral-300 mx-auto" />
-                    <div className="font-display font-bold uppercase text-neutral-900">
-                      No Prior Vault Movements
-                    </div>
-                    <p className="font-sans text-xs text-neutral-500 max-w-xs mx-auto">
+                    <Wallet className="w-10 h-10 text-secondary mx-auto" />
+                    <div className="font-display font-bold  text-ink">No Prior Vault Movements</div>
+                    <p className="font-sans text-xs text-secondary max-w-xs mx-auto">
                       Top up your balance using UPI or cards to activate instant drops.
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y-2 divide-black/10">
+                  <div className="divide-y divide-line">
                     {transactions.map((tx, idx: number) => {
                       const isCredit = tx.type === 'CREDIT' || Number(tx.amount) > 0;
                       return (
                         <div
                           key={tx.id || idx}
-                          className="py-3 flex items-center justify-between gap-4 font-tech text-xs"
+                          className="py-3 flex items-center justify-between gap-4 font-sans text-xs"
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-8 h-8 border-2 border-black flex items-center justify-center font-bold shadow-[2px_2px_0px_#000] ${
-                                isCredit ? 'bg-[#00E599] text-black' : 'bg-[#FF4800] text-white'
+                              className={`w-8 h-8 border rounded-xl border-line flex items-center justify-center font-bold  ${
+                                isCredit ? 'bg-brand-soft text-ink' : 'bg-danger-soft text-ink'
                               }`}
                             >
                               {isCredit ? (
@@ -309,11 +308,11 @@ export default function WalletPage() {
                               )}
                             </div>
                             <div>
-                              <div className="font-bold text-neutral-900 uppercase">
+                              <div className="font-bold text-ink ">
                                 {tx.description ||
                                   (isCredit ? 'Wallet Top-Up Credit' : 'Order Payment Debit')}
                               </div>
-                              <div className="text-[10px] text-neutral-500">
+                              <div className="text-xs text-secondary">
                                 {tx.createdAt
                                   ? new Date(tx.createdAt).toLocaleString()
                                   : 'Recent Movement'}
@@ -323,15 +322,13 @@ export default function WalletPage() {
 
                           <div className="text-right">
                             <div
-                              className={`font-black text-sm tracking-tight ${
-                                isCredit ? 'text-[#059669]' : 'text-neutral-900'
+                              className={`font-bold text-sm tracking-tight ${
+                                isCredit ? 'text-brand' : 'text-ink'
                               }`}
                             >
                               {isCredit ? '+' : '-'}₹{Math.abs(Number(tx.amount)).toFixed(2)}
                             </div>
-                            <span className="text-[9px] uppercase font-bold text-neutral-400">
-                              {'CONFIRMED'}
-                            </span>
+                            <span className="text-xs  font-bold text-secondary">{'CONFIRMED'}</span>
                           </div>
                         </div>
                       );
@@ -346,21 +343,21 @@ export default function WalletPage() {
 
       {/* Topup Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="card-brutal bg-white w-full max-w-md p-6 border-2 border-black shadow-[8px_8px_0px_#000] space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-black pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-muted p-4 backdrop-blur-xs">
+          <div className="surface-card bg-surface w-full max-w-md p-6 border rounded-xl border-line  space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <span className="font-tech text-[10px] uppercase font-bold text-neutral-500">
-                  PROTOCOL SETTLEMENT
+                <span className="font-sans text-xs  font-bold text-secondary">
+                  Protocol settlement
                 </span>
-                <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+                <h3 className="font-display font-bold text-xl  tracking-tight text-ink">
                   Add Wallet Balance
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 border-2 border-black flex items-center justify-center hover:bg-[#FF4800] hover:text-white transition-colors"
+                className="w-8 h-8 border rounded-xl border-line flex items-center justify-center hover:bg-danger-soft hover:text-ink transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -368,11 +365,11 @@ export default function WalletPage() {
 
             <form onSubmit={handleTopup} className="space-y-4">
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                <label className="block font-sans text-xs  font-bold text-ink mb-1.5">
                   Top-Up Amount (₹ INR)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-tech font-bold text-base text-neutral-700">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans font-bold text-base text-secondary">
                     ₹
                   </span>
                   <input
@@ -382,7 +379,7 @@ export default function WalletPage() {
                     required
                     value={topupAmount}
                     onChange={(e) => setTopupAmount(e.target.value)}
-                    className="input-brutal !pl-8 font-tech text-base font-bold"
+                    className="field-input !pl-8 font-sans text-base font-bold"
                     placeholder="500"
                   />
                 </div>
@@ -395,10 +392,10 @@ export default function WalletPage() {
                     key={amt}
                     type="button"
                     onClick={() => setTopupAmount(amt)}
-                    className={`py-1.5 border-2 border-black font-tech text-xs uppercase font-bold transition-all ${
+                    className={`py-1.5 border rounded-xl border-line font-sans text-xs  font-bold transition-all ${
                       topupAmount === amt
-                        ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000]'
-                        : 'bg-[#FAFAF8] text-neutral-700 hover:bg-neutral-200'
+                        ? 'bg-brand-soft text-ink '
+                        : 'bg-canvas text-secondary hover:bg-muted'
                     }`}
                   >
                     ₹{amt}
@@ -406,8 +403,8 @@ export default function WalletPage() {
                 ))}
               </div>
 
-              <div className="p-3 bg-[#FAFAF8] border-2 border-black font-tech text-[11px] text-neutral-600 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#059669] flex-shrink-0" />
+              <div className="p-3 bg-canvas border rounded-xl border-line font-sans text-xs text-secondary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-brand flex-shrink-0" />
                 <span>Instant simulated credit for seamless checkout testing.</span>
               </div>
 
@@ -415,22 +412,22 @@ export default function WalletPage() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="w-1/2 btn-brutal-white !h-11 font-tech text-xs uppercase font-bold"
+                  className="w-1/2 button-secondary !h-11 font-sans text-xs  font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-1/2 btn-brutal-yellow !h-11 font-tech text-xs uppercase font-bold flex items-center justify-center gap-2"
+                  className="w-1/2 button-primary !h-11 font-sans text-xs  font-bold flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>CREDITING...</span>
+                      <span>Crediting...</span>
                     </>
                   ) : (
-                    <span>CONFIRM DEPOSIT</span>
+                    <span>Confirm deposit</span>
                   )}
                 </button>
               </div>

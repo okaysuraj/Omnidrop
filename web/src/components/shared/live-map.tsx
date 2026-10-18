@@ -1,5 +1,7 @@
 'use client';
 
+import { MapPin } from 'lucide-react';
+
 import { useSocket } from '@/providers/socket-provider';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useEffect, useState } from 'react';
@@ -48,31 +50,14 @@ export function LiveMap({ orderId, initialLat, initialLng }: LiveMapProps) {
 
   if (!hasApiKey) {
     return (
-      <div className="w-full h-full bg-[#0A0A0A] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-tech">
-        {/* Radar concentric circular grid */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-          <div className="w-72 h-72 rounded-full border border-neutral-600 animate-ping"></div>
-          <div className="absolute w-56 h-56 rounded-full border border-neutral-700"></div>
-          <div className="absolute w-36 h-36 rounded-full border border-neutral-800"></div>
-          <div className="absolute w-full h-[1px] bg-neutral-800"></div>
-          <div className="absolute h-full w-[1px] bg-neutral-800"></div>
-        </div>
-
-        {/* Pulsing courier beacon */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-14 h-14 bg-[#FFE600] border-2 border-black flex items-center justify-center text-2xl shadow-[3px_3px_0px_#00E599] mb-3 animate-bounce">
-            🛵
-          </div>
-          <div className="bg-black border border-neutral-700 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#00E599] shadow-[2px_2px_0px_#000]">
-            ● RADAR TELEMETRY LOCK
-          </div>
-          <div className="font-mono text-xs text-neutral-300 mt-2 font-bold tracking-tight">
-            LAT: {riderLocation.lat.toFixed(6)} | LNG: {riderLocation.lng.toFixed(6)}
-          </div>
-          <div className="text-[10px] text-neutral-500 uppercase mt-1">
-            MOMENTUM VECTOR: 28.4 KM/H · BEARING 042°
-          </div>
-        </div>
+      <div className="w-full h-full bg-muted text-ink flex flex-col items-center justify-center p-7 text-center rounded-2xl">
+        <span className="empty-state-icon">
+          <MapPin size={27} />
+        </span>
+        <h3 className="font-bold text-base">The map is unavailable right now.</h3>
+        <p className="text-sm text-secondary mt-2 max-w-xs leading-7">
+          Follow your order status here for updates on your delivery.
+        </p>
       </div>
     );
   }
@@ -100,6 +85,11 @@ export function LiveMap({ orderId, initialLat, initialLng }: LiveMapProps) {
       />
     </GoogleMap>
   ) : (
-    <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: 16 }} />
+    <div
+      role="status"
+      className="w-full h-full flex items-center justify-center bg-muted rounded-2xl text-sm text-secondary"
+    >
+      Loading your delivery map...
+    </div>
   );
 }

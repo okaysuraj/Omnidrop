@@ -1,5 +1,7 @@
 'use client';
 
+import { Zap as UiZap } from 'lucide-react';
+
 import { BrutalFooter } from '@/components/shared/brutal-footer';
 import { BrutalNav } from '@/components/shared/brutal-nav';
 import { api } from '@/lib/api';
@@ -135,42 +137,46 @@ export default function ProductManagementScreen() {
   const currentCategoryName = categories.find((c) => c.id === selectedCategory)?.name || 'General';
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Navigation Breadcrumb & Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
             <Link
               href="/shopkeeper/dashboard"
-              className="inline-flex items-center gap-1.5 font-tech text-xs font-bold text-neutral-600 hover:text-black mb-2 uppercase"
+              className="inline-flex items-center gap-1.5 font-sans text-xs font-bold text-secondary hover:text-ink mb-2 "
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to Merchant Console
             </Link>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] ml-3 mb-2">
-              {'// HUB:'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   ml-3 mb-2">
+              {'Hub:'}
               {store?.name || 'MICRO-HUB'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Register New Shelf SKU
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
+              Add a product
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
               Add catalog inventory directly to local store shelf. Instant propagation to nearby
               customer apps.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-tech text-xs bg-[#00E599] text-black font-bold uppercase px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_#000]">
+            <span className="font-sans text-xs bg-brand-soft text-ink font-bold  px-3 py-1.5 border rounded-xl border-line ">
               Take-Rate: Fixed 6.0%
             </span>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="p-4 bg-[#FF4800]/15 border-2 border-[#FF4800] text-black font-tech text-xs font-bold shadow-[3px_3px_0px_#000] flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-[#FF4800] shrink-0" />
+          <div className="p-4 bg-danger-soft border rounded-xl border-danger text-ink font-sans text-xs font-bold  flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-danger shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -179,35 +185,43 @@ export default function ProductManagementScreen() {
           {/* Left Column: Form Fields */}
           <div className="lg:col-span-7 space-y-6">
             {/* 1. Identification Box */}
-            <div className="card-brutal p-6 space-y-4">
-              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
-                <Tag className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 space-y-4">
+              <h2 className="font-display font-bold text-lg  text-ink flex items-center gap-2 pb-2 border-b border-line">
+                <Tag className="w-5 h-5 text-ink" />
                 1. Product Identification
               </h2>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-products-new-page-1"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Product Title / Commercial Name *
                 </label>
                 <input
+                  id="field-shopkeeper-products-new-page-1"
                   type="text"
                   required
                   placeholder="e.g. Organic Hass Avocados (2 Pack)"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
-                  className="input-brutal text-sm"
+                  className="field-input text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  <label
+                    htmlFor="field-shopkeeper-products-new-page-2"
+                    className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                  >
                     Category Taxonomy *
                   </label>
                   <select
+                    id="field-shopkeeper-products-new-page-2"
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="input-brutal text-sm bg-white cursor-pointer"
+                    className="field-input text-sm bg-surface cursor-pointer"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -218,13 +232,17 @@ export default function ProductManagementScreen() {
                 </div>
 
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  <label
+                    htmlFor="field-shopkeeper-products-new-page-3"
+                    className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                  >
                     Pack / Measurement Unit
                   </label>
                   <select
+                    id="field-shopkeeper-products-new-page-3"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="input-brutal text-sm bg-white cursor-pointer"
+                    className="field-input text-sm bg-surface cursor-pointer"
                   >
                     <option value="pack">Pack / Box</option>
                     <option value="kg">Kilogram (kg)</option>
@@ -237,32 +255,40 @@ export default function ProductManagementScreen() {
               </div>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-products-new-page-4"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Consumer Description & Origin Notes
                 </label>
                 <textarea
+                  id="field-shopkeeper-products-new-page-4"
                   rows={3}
                   placeholder="Freshly sourced quality grade, locally packaged with 100% biodegradable seal..."
                   value={productDescription}
                   onChange={(e) => setProductDescription(e.target.value)}
-                  className="input-brutal text-sm resize-none"
+                  className="field-input text-sm resize-none"
                 />
               </div>
             </div>
 
             {/* 2. Pricing & Financial Ledger */}
-            <div className="card-brutal p-6 space-y-4">
-              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
-                <DollarSign className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 space-y-4">
+              <h2 className="font-display font-bold text-lg  text-ink flex items-center gap-2 pb-2 border-b border-line">
+                <DollarSign className="w-5 h-5 text-ink" />
                 2. Pricing & Shelf Stock
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  <label
+                    htmlFor="field-shopkeeper-products-new-page-5"
+                    className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                  >
                     Selling Price (₹) *
                   </label>
                   <input
+                    id="field-shopkeeper-products-new-page-5"
                     type="number"
                     step="0.01"
                     min="1"
@@ -270,68 +296,70 @@ export default function ProductManagementScreen() {
                     placeholder="120"
                     value={productPrice}
                     onChange={(e) => handlePriceChange(e.target.value)}
-                    className="input-brutal text-sm font-tech font-bold"
+                    className="field-input text-sm font-sans font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  <label
+                    htmlFor="field-shopkeeper-products-new-page-6"
+                    className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                  >
                     MRP / List Price (₹)
                   </label>
                   <input
+                    id="field-shopkeeper-products-new-page-6"
                     type="number"
                     step="0.01"
                     min="1"
                     placeholder="150"
                     value={productMrp}
                     onChange={(e) => setProductMrp(e.target.value)}
-                    className="input-brutal text-sm font-tech text-neutral-600"
+                    className="field-input text-sm font-sans text-secondary"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                  <label
+                    htmlFor="field-shopkeeper-products-new-page-7"
+                    className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                  >
                     Shelf Stock (Units) *
                   </label>
                   <input
+                    id="field-shopkeeper-products-new-page-7"
                     type="number"
                     min="0"
                     required
                     value={stockQuantity}
                     onChange={(e) => setStockQuantity(e.target.value)}
-                    className="input-brutal text-sm font-tech font-bold"
+                    className="field-input text-sm font-sans font-bold"
                   />
                 </div>
               </div>
 
               {/* Real-time Economic Calculator */}
-              <div className="p-4 bg-neutral-100 border-2 border-black space-y-2">
-                <p className="font-tech text-xs uppercase font-bold text-neutral-800 flex items-center justify-between">
+              <div className="p-4 bg-muted border rounded-xl border-line space-y-2">
+                <p className="font-sans text-xs  font-bold text-ink flex items-center justify-between">
                   <span>Omnidrop Merchant Settlement Breakdown</span>
                   {discountPercent > 0 && (
-                    <span className="px-2 py-0.5 bg-[#FF4800] text-white text-[10px]">
-                      {discountPercent}% OFF MRP
+                    <span className="px-2 py-0.5 bg-danger-soft text-ink text-xs">
+                      {discountPercent}% off mrp
                     </span>
                   )}
                 </p>
-                <div className="grid grid-cols-3 gap-2 font-tech text-xs text-neutral-600 pt-2 border-t border-neutral-300">
+                <div className="grid grid-cols-3 gap-2 font-sans text-xs text-secondary pt-2 border-t border-line">
                   <div>
-                    <span className="text-[10px] text-neutral-500 uppercase block">
-                      Customer Pays
-                    </span>
-                    <strong className="text-neutral-900 text-sm">₹{numPrice.toFixed(2)}</strong>
+                    <span className="text-xs text-secondary  block">Customer Pays</span>
+                    <strong className="text-ink text-sm">₹{numPrice.toFixed(2)}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-neutral-500 uppercase block">
-                      Omnidrop Fee (6%)
-                    </span>
-                    <strong className="text-[#FF4800] text-sm">-₹{takeRate.toFixed(2)}</strong>
+                    <span className="text-xs text-secondary  block">Omnidrop Fee (6%)</span>
+                    <strong className="text-danger text-sm">-₹{takeRate.toFixed(2)}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-neutral-500 uppercase block">
-                      Your Bank Payout
-                    </span>
-                    <strong className="text-[#00E599] bg-black px-1.5 py-0.5 text-sm inline-block">
+                    <span className="text-xs text-secondary  block">Your Bank Payout</span>
+                    <strong className="text-brand bg-muted px-1.5 py-0.5 text-sm inline-block">
                       ₹{merchantNet.toFixed(2)}
                     </strong>
                   </div>
@@ -340,27 +368,31 @@ export default function ProductManagementScreen() {
             </div>
 
             {/* 3. Media Assets */}
-            <div className="card-brutal p-6 space-y-4">
-              <h2 className="font-display font-black text-lg uppercase text-neutral-900 flex items-center gap-2 pb-2 border-b-2 border-black">
-                <ImageIcon className="w-5 h-5 text-black" />
+            <div className="surface-card p-6 space-y-4">
+              <h2 className="font-display font-bold text-lg  text-ink flex items-center gap-2 pb-2 border-b border-line">
+                <ImageIcon className="w-5 h-5 text-ink" />
                 3. Imagery & Catalog Asset
               </h2>
 
               <div>
-                <label className="block font-tech text-xs uppercase font-bold text-neutral-700 mb-1.5">
+                <label
+                  htmlFor="field-shopkeeper-products-new-page-8"
+                  className="block font-sans text-xs  font-bold text-secondary mb-1.5"
+                >
                   Image CDN / Web Link
                 </label>
                 <input
+                  id="field-shopkeeper-products-new-page-8"
                   type="url"
                   placeholder="https://images.unsplash.com/..."
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  className="input-brutal text-sm font-tech text-xs"
+                  className="field-input text-sm font-sans text-xs"
                 />
               </div>
 
               <div>
-                <p className="font-tech text-xs uppercase font-bold text-neutral-600 mb-2">
+                <p className="font-sans text-xs  font-bold text-secondary mb-2">
                   Or Pick a High-Resolution Preset:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -369,18 +401,18 @@ export default function ProductManagementScreen() {
                       key={preset.name}
                       type="button"
                       onClick={() => setImageUrl(preset.url)}
-                      className={`p-2 border-2 border-black text-left flex items-center gap-2 transition-all ${
+                      className={`p-2 border rounded-xl border-line text-left flex items-center gap-2 transition-all ${
                         imageUrl === preset.url
-                          ? 'bg-[#FFE600] font-bold shadow-[2px_2px_0px_#000]'
-                          : 'bg-white hover:bg-neutral-50 shadow-[1px_1px_0px_#000]'
+                          ? 'bg-brand-soft font-bold '
+                          : 'bg-surface hover:bg-muted '
                       }`}
                     >
                       <img
                         src={preset.url}
                         alt={preset.name}
-                        className="w-8 h-8 object-cover border border-black"
+                        className="w-8 h-8 object-cover border border-line"
                       />
-                      <span className="font-tech text-[11px] truncate">{preset.name}</span>
+                      <span className="font-sans text-xs truncate">{preset.name}</span>
                     </button>
                   ))}
                 </div>
@@ -390,58 +422,62 @@ export default function ProductManagementScreen() {
 
           {/* Right Column: Customer Card Preview & Submit */}
           <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-            <div className="card-brutal p-6 bg-white space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b-2 border-black">
-                <h3 className="font-display font-black text-base uppercase text-neutral-900 flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-black" />
+            <div className="surface-card p-6 bg-surface space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-line">
+                <h3 className="font-display font-bold text-base  text-ink flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-ink" />
                   Live Shelf Preview
                 </h3>
-                <span className="font-tech text-[10px] bg-black text-[#FFE600] px-2 py-0.5 uppercase font-bold">
+                <span className="font-sans text-xs bg-muted text-brand px-2 py-0.5  font-bold">
                   Customer App View
                 </span>
               </div>
 
-              <p className="font-sans text-xs text-neutral-600">
+              <p className="font-sans text-xs text-secondary">
                 This is exactly how this item will be presented to shoppers within your delivery
                 radius:
               </p>
 
               {/* Neo-Brutalist Customer Card */}
-              <div className="border-2 border-black bg-white shadow-[4px_4px_0px_#000] overflow-hidden">
-                <div className="h-44 bg-neutral-100 relative border-b-2 border-black overflow-hidden">
+              <div className="border rounded-xl border-line bg-surface  overflow-hidden">
+                <div className="h-44 bg-muted relative border-b border-line overflow-hidden">
                   <img
                     src={imageUrl || PRESET_IMAGES[0].url}
                     alt="Preview"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2 left-2">
-                    <span className="px-2 py-0.5 bg-black text-white font-tech text-[10px] font-bold uppercase border border-white">
+                    <span className="px-2 py-0.5 bg-muted text-ink font-sans text-xs font-bold  border border-line">
                       {currentCategoryName}
                     </span>
                   </div>
                   <div className="absolute top-2 right-2">
-                    <span className="px-2 py-0.5 bg-[#FFE600] text-black font-tech text-[10px] font-bold uppercase border border-black">
-                      ⚡ 12-MIN DISPATCH
+                    <span className="px-2 py-0.5 bg-brand-soft text-ink font-sans text-xs font-bold  border border-line">
+                      <UiZap
+                        className="inline-block size-4 align-text-bottom mr-1.5"
+                        aria-hidden="true"
+                      />{' '}
+                      12-MIN DISPATCH
                     </span>
                   </div>
                 </div>
 
                 <div className="p-4 space-y-3">
                   <div>
-                    <h4 className="font-sans font-black text-base text-neutral-900 leading-tight">
+                    <h4 className="font-sans font-bold text-base text-ink leading-tight">
                       {productName || 'Product Title Goes Here'}
                     </h4>
-                    <p className="font-tech text-xs text-neutral-500 mt-0.5">
+                    <p className="font-sans text-xs text-secondary mt-0.5">
                       Per {unit} · In Stock ({stockQuantity || 0})
                     </p>
                   </div>
 
                   <div className="flex items-baseline gap-2 pt-1">
-                    <span className="font-display font-black text-2xl text-neutral-900">
+                    <span className="font-display font-bold text-2xl text-ink">
                       ₹{numPrice ? numPrice.toFixed(2) : '0.00'}
                     </span>
                     {numMrp > numPrice && (
-                      <span className="font-tech text-xs text-neutral-500 line-through">
+                      <span className="font-sans text-xs text-secondary line-through">
                         ₹{numMrp.toFixed(2)}
                       </span>
                     )}
@@ -449,49 +485,47 @@ export default function ProductManagementScreen() {
 
                   <button
                     type="button"
-                    className="w-full py-2 bg-neutral-900 text-white font-tech text-xs font-bold uppercase border-2 border-black cursor-not-allowed opacity-80"
+                    className="w-full py-2 bg-muted text-ink font-sans text-xs font-bold  border rounded-xl border-line cursor-not-allowed opacity-80"
                   >
-                    + ADD TO TOTE (DEMO)
+                    + add to tote (demo)
                   </button>
                 </div>
               </div>
 
               {/* Validation Checklist */}
-              <div className="space-y-1.5 pt-2 font-tech text-xs">
+              <div className="space-y-1.5 pt-2 font-sans text-xs">
                 <div className="flex items-center gap-2">
                   <CheckCircle2
-                    className={`w-3.5 h-3.5 ${productName.trim() ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                    className={`w-3.5 h-3.5 ${productName.trim() ? 'text-brand' : 'text-secondary'}`}
                   />
-                  <span className={productName.trim() ? 'text-black' : 'text-neutral-500'}>
+                  <span className={productName.trim() ? 'text-ink' : 'text-secondary'}>
                     Product Title Configured
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2
-                    className={`w-3.5 h-3.5 ${numPrice > 0 ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                    className={`w-3.5 h-3.5 ${numPrice > 0 ? 'text-brand' : 'text-secondary'}`}
                   />
-                  <span className={numPrice > 0 ? 'text-black' : 'text-neutral-500'}>
+                  <span className={numPrice > 0 ? 'text-ink' : 'text-secondary'}>
                     Price & Margins Calculated
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2
-                    className={`w-3.5 h-3.5 ${parseInt(stockQuantity, 10) > 0 ? 'text-[#00E599]' : 'text-neutral-400'}`}
+                    className={`w-3.5 h-3.5 ${parseInt(stockQuantity, 10) > 0 ? 'text-brand' : 'text-secondary'}`}
                   />
-                  <span
-                    className={parseInt(stockQuantity, 10) > 0 ? 'text-black' : 'text-neutral-500'}
-                  >
+                  <span className={parseInt(stockQuantity, 10) > 0 ? 'text-ink' : 'text-secondary'}>
                     Initial Shelf Stock Loaded
                   </span>
                 </div>
               </div>
 
               {/* CTA Action */}
-              <div className="pt-4 border-t-2 border-black space-y-3">
+              <div className="pt-4 border-t border-line space-y-3">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-brutal-yellow w-full !h-12 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000]"
+                  className="button-primary w-full !h-12 text-sm font-bold  tracking-normal flex items-center justify-center gap-2 "
                 >
                   <Rocket className="w-4 h-4" />
                   <span>{loading ? 'Publishing SKU...' : 'Publish to Active Shelf'}</span>
@@ -499,7 +533,7 @@ export default function ProductManagementScreen() {
 
                 <Link
                   href="/shopkeeper/dashboard"
-                  className="block text-center font-tech text-xs font-bold uppercase text-neutral-600 hover:text-black py-1"
+                  className="block text-center font-sans text-xs font-bold  text-secondary hover:text-ink py-1"
                 >
                   Cancel and Return
                 </Link>

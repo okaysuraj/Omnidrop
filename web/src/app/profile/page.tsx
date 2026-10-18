@@ -47,7 +47,7 @@ export default function ProfilePage() {
     setFeedback(null);
     try {
       await api.auth.updateProfile({ fullName, phone });
-      setFeedback({ type: 'success', message: 'Operator profile credentials updated in mesh.' });
+      setFeedback({ type: 'success', message: 'Your profile has been updated.' });
     } catch (err) {
       setFeedback({ type: 'error', message: getErrorMessage(err) || 'Failed to update profile.' });
     } finally {
@@ -56,7 +56,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    if (!confirm('Are you sure you want to terminate your Omnidrop session?')) return;
+    if (!confirm('Sign out of Omnidrop?')) return;
     try {
       await logout();
       router.push('/auth/login');
@@ -67,11 +67,11 @@ export default function ProfilePage() {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-between">
+      <div className="min-h-dvh bg-canvas flex flex-col">
         <BrutalNav />
-        <div className="container-brutal py-24 text-center font-tech text-xs font-bold flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-black" />
-          <span className="uppercase tracking-wider">INITIALIZING OPERATOR CONSOLE...</span>
+        <div className="site-container py-24 text-center font-sans text-xs font-bold flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-ink" />
+          <span className=" tracking-normal">Loading your account…</span>
         </div>
         <BrutalFooter />
       </div>
@@ -81,20 +81,24 @@ export default function ProfilePage() {
   const initial = (user.fullName || user.email || 'O').charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] font-sans selection:bg-[#FFE600] selection:text-black flex flex-col justify-between">
+    <div className="min-h-dvh bg-canvas text-ink font-sans selection:bg-brand-soft selection:text-ink flex flex-col">
       <BrutalNav />
 
-      <main className="container-brutal py-8 sm:py-12 space-y-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 site-container py-8 sm:py-12 space-y-8"
+      >
         {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black text-white border-2 border-black font-tech text-xs font-bold uppercase shadow-[2px_2px_0px_#000] mb-2">
-              {'// AUTHENTICATED OPERATOR CONSOLE'}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-muted text-ink border rounded-xl border-line font-sans text-xs font-bold   mb-2">
+              {'Authenticated operator console'}
             </div>
-            <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight text-neutral-900">
-              Account Control
+            <h1 className="font-display font-bold text-3xl sm:text-4xl  tracking-tight text-ink">
+              Your account
             </h1>
-            <p className="font-sans text-xs sm:text-sm text-neutral-600 font-medium mt-1">
+            <p className="font-sans text-xs sm:text-sm text-secondary font-medium mt-1">
               Manage your identity telemetry, linked wallets, and delivery credentials.
             </p>
           </div>
@@ -102,7 +106,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="btn-brutal-white !h-10 !px-4 text-xs font-bold uppercase flex items-center gap-2 hover:!bg-[#FF4800] hover:!text-white self-start sm:self-auto transition-colors"
+            className="button-secondary !h-10 !px-4 text-xs font-bold  flex items-center gap-2 hover:!bg-danger-soft hover:!text-ink self-start sm:self-auto transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span>Terminate Session</span>
@@ -112,8 +116,8 @@ export default function ProfilePage() {
         {/* Global Feedback Banner */}
         {feedback && (
           <div
-            className={`p-4 border-2 border-black shadow-[4px_4px_0px_#000] font-tech text-xs font-bold flex items-center gap-3 ${
-              feedback.type === 'success' ? 'bg-[#00E599] text-black' : 'bg-[#FF4800] text-white'
+            className={`p-4 border rounded-xl border-line  font-sans text-xs font-bold flex items-center gap-3 ${
+              feedback.type === 'success' ? 'bg-brand-soft text-ink' : 'bg-danger-soft text-ink'
             }`}
           >
             {feedback.type === 'success' ? (
@@ -128,48 +132,46 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: User Identity Card */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="card-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] text-center space-y-4">
-              <div className="w-20 h-20 bg-[#FFE600] text-black border-2 border-black shadow-[3px_3px_0px_#000] flex items-center justify-center font-display font-black text-3xl uppercase mx-auto">
+            <div className="surface-card bg-surface p-6 border rounded-xl border-line  text-center space-y-4">
+              <div className="w-20 h-20 bg-brand-soft text-ink border rounded-xl border-line  flex items-center justify-center font-display font-bold text-3xl  mx-auto">
                 {initial}
               </div>
 
               <div>
-                <h3 className="font-display font-black text-2xl uppercase tracking-tight text-neutral-900">
+                <h3 className="font-display font-bold text-2xl  tracking-tight text-ink">
                   {user.fullName || 'Verified Operator'}
                 </h3>
-                <p className="font-tech text-xs text-neutral-500 mt-0.5">{user.email}</p>
+                <p className="font-sans text-xs text-secondary mt-0.5">{user.email}</p>
                 <div className="mt-2.5">
-                  <span className="badge-brutal-yellow font-tech text-xs font-black uppercase">
-                    ROLE: {user.role || 'CUSTOMER'}
+                  <span className="badge-accent font-sans text-xs font-bold ">
+                    Role: {user.role || 'CUSTOMER'}
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-[#FAFAF8] border-2 border-black font-tech text-xs text-left space-y-1.5">
+              <div className="p-3 bg-canvas border rounded-xl border-line font-sans text-xs text-left space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-neutral-500 uppercase font-bold">UID:</span>
-                  <span className="font-bold text-neutral-900 truncate max-w-[180px]">
-                    {user.id}
-                  </span>
+                  <span className="text-secondary  font-bold">Uid:</span>
+                  <span className="font-bold text-ink truncate max-w-[180px]">{user.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-500 uppercase font-bold">PHONE:</span>
-                  <span className="font-bold text-neutral-900">{user.phone || 'Not Set'}</span>
+                  <span className="text-secondary  font-bold">Phone:</span>
+                  <span className="font-bold text-ink">{user.phone || 'Not Set'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-500 uppercase font-bold">SESSION STATUS:</span>
-                  <span className="font-bold text-[#059669]">ACTIVE PROTOCOL</span>
+                  <span className="text-secondary  font-bold">Session status:</span>
+                  <span className="font-bold text-brand">Active protocol</span>
                 </div>
               </div>
             </div>
 
             {/* Quick Navigation Cards */}
-            <div className="grid grid-cols-2 gap-3 font-tech text-xs font-bold uppercase">
+            <div className="grid grid-cols-2 gap-3 font-sans text-xs font-bold ">
               <Link
                 href="/orders"
-                className="card-brutal bg-white p-4 border-2 border-black shadow-[3px_3px_0px_#000] hover:bg-[#FFE600] hover:shadow-[4px_4px_0px_#000] transition-all flex flex-col justify-between h-24"
+                className="surface-card bg-surface p-4 border rounded-xl border-line  hover:bg-brand-soft  transition-all flex flex-col h-24"
               >
-                <Package className="w-5 h-5 text-black" />
+                <Package className="w-5 h-5 text-ink" />
                 <div className="flex items-center justify-between">
                   <span>My Orders</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -178,9 +180,9 @@ export default function ProfilePage() {
 
               <Link
                 href="/wallet"
-                className="card-brutal bg-white p-4 border-2 border-black shadow-[3px_3px_0px_#000] hover:bg-[#FFE600] hover:shadow-[4px_4px_0px_#000] transition-all flex flex-col justify-between h-24"
+                className="surface-card bg-surface p-4 border rounded-xl border-line  hover:bg-brand-soft  transition-all flex flex-col h-24"
               >
-                <Wallet className="w-5 h-5 text-black" />
+                <Wallet className="w-5 h-5 text-ink" />
                 <div className="flex items-center justify-between">
                   <span>Omni Wallet</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -189,9 +191,9 @@ export default function ProfilePage() {
 
               <Link
                 href="/addresses"
-                className="card-brutal bg-white p-4 border-2 border-black shadow-[3px_3px_0px_#000] hover:bg-[#FFE600] hover:shadow-[4px_4px_0px_#000] transition-all flex flex-col justify-between h-24"
+                className="surface-card bg-surface p-4 border rounded-xl border-line  hover:bg-brand-soft  transition-all flex flex-col h-24"
               >
-                <MapPin className="w-5 h-5 text-black" />
+                <MapPin className="w-5 h-5 text-ink" />
                 <div className="flex items-center justify-between">
                   <span>Waypoints</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -200,9 +202,9 @@ export default function ProfilePage() {
 
               <Link
                 href="/cart"
-                className="card-brutal bg-white p-4 border-2 border-black shadow-[3px_3px_0px_#000] hover:bg-[#FFE600] hover:shadow-[4px_4px_0px_#000] transition-all flex flex-col justify-between h-24"
+                className="surface-card bg-surface p-4 border rounded-xl border-line  hover:bg-brand-soft  transition-all flex flex-col h-24"
               >
-                <ShoppingBag className="w-5 h-5 text-black" />
+                <ShoppingBag className="w-5 h-5 text-ink" />
                 <div className="flex items-center justify-between">
                   <span>Active Tote</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -213,58 +215,70 @@ export default function ProfilePage() {
 
           {/* Right Column: Edit Profile Form */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="card-brutal bg-white p-6 border-2 border-black shadow-[6px_6px_0px_#000] space-y-5">
-              <div className="border-b-2 border-black pb-3 flex items-center justify-between">
+            <div className="surface-card bg-surface p-6 border rounded-xl border-line  space-y-5">
+              <div className="border-b border-line pb-3 flex items-center justify-between">
                 <div>
-                  <h3 className="font-display font-black text-xl uppercase tracking-tight text-neutral-900">
+                  <h3 className="font-display font-bold text-xl  tracking-tight text-ink">
                     Modify Operator Telemetry
                   </h3>
-                  <p className="font-tech text-xs text-neutral-500">
-                    UPDATE YOUR CREDENTIALS ACROSS THE MESH
+                  <p className="font-sans text-xs text-secondary">
+                    Update your credentials across the mesh
                   </p>
                 </div>
-                <Edit3 className="w-5 h-5 text-neutral-400" />
+                <Edit3 className="w-5 h-5 text-secondary" />
               </div>
 
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                  <label
+                    htmlFor="field-profile-page-1"
+                    className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                  >
                     Full Legal Name
                   </label>
                   <input
+                    id="field-profile-page-1"
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="input-brutal text-xs"
+                    className="field-input text-xs"
                     placeholder="e.g. Alex Henderson"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                  <label
+                    htmlFor="field-profile-page-2"
+                    className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                  >
                     Primary Email (Locked)
                   </label>
                   <input
+                    id="field-profile-page-2"
                     type="email"
                     disabled
                     value={user.email}
-                    className="input-brutal text-xs bg-neutral-100 cursor-not-allowed opacity-75 font-tech"
+                    className="field-input text-xs bg-muted cursor-not-allowed opacity-75 font-sans"
                   />
-                  <span className="font-tech text-[10px] text-neutral-400 mt-1 block">
+                  <span className="font-sans text-xs text-secondary mt-1 block">
                     Secured by Firebase Authentication. Contact system admin to change.
                   </span>
                 </div>
 
                 <div>
-                  <label className="block font-tech text-xs uppercase font-bold text-neutral-900 mb-1.5">
+                  <label
+                    htmlFor="field-profile-page-3"
+                    className="block font-sans text-xs  font-bold text-ink mb-1.5"
+                  >
                     Mobile Phone Number
                   </label>
                   <input
+                    id="field-profile-page-3"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="input-brutal text-xs font-tech font-bold"
+                    className="field-input text-xs font-sans font-bold"
                     placeholder="+91 98765 43210"
                   />
                 </div>
@@ -273,12 +287,12 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn-brutal-yellow !h-11 !px-6 text-xs font-bold uppercase flex items-center justify-center gap-2"
+                    className="button-primary !h-11 !px-6 text-xs font-bold  flex items-center justify-center gap-2"
                   >
                     {saving ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>UPDATING TELEMETRY...</span>
+                        <span>Updating telemetry...</span>
                       </>
                     ) : (
                       <span>Save Profile Changes</span>
